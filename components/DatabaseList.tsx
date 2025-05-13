@@ -57,11 +57,11 @@ const styles = StyleSheet.create({
   songItem: {
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: '#dddddd',
   },
   songText: {
     fontSize: 14,
-    color: '#333',
+    color: '#333333',
   },
 });
 

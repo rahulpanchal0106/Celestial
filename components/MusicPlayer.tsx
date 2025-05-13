@@ -1,95 +1,133 @@
-import React, { useState, useEffect, useRef, JSX } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Platform, Alert } from 'react-native';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import * as Notifications from 'expo-notifications';
-import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import MusicFileList from './MusicFileList';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import { setCurrentTrack, setIsPlaying, setCurrentTime, setDuration } from '../store/musicPlayerSlice';
 import { Ionicons } from '@expo/vector-icons';
-import ScrollingText from './ScrollingText';
 
-// Define background task
+// Import Reanimated and Gesture Handler
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  Easing,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+
+// Background task definition (unchanged)
 const BACKGROUND_PLAYBACK_TASK = 'background-playback-task';
-const AUDIO_CACHE_DIR = `${FileSystem.cacheDirectory}audio-cache/`;
-const AUDIO_CACHE_INFO_KEY = 'audio-cache-info';
-
-// Register the task for background playback
 TaskManager.defineTask(BACKGROUND_PLAYBACK_TASK, async () => {
   try {
-    // Retrieve current playback info from storage
     const playbackInfoStr = await AsyncStorage.getItem('current-playback-info');
     if (playbackInfoStr) {
       const playbackInfo = JSON.parse(playbackInfoStr);
-      
-      // If there was playback in progress, we could resume it here
-      // Or check if notification actions should be triggered
-      
       return BackgroundFetch.BackgroundFetchResult.NewData;
     }
   } catch (error) {
     console.log('Background task error:', error);
   }
-  
   return BackgroundFetch.BackgroundFetchResult.NoData;
 });
 
-interface PlaybackStatus {
-  isLoaded: boolean;
-  isPlaying?: boolean;
-  durationMillis?: number;
-  positionMillis?: number;
-  didJustFinish?: boolean;
-  isLooping?: boolean;
-}
-
-interface CachedAudioInfo {
-  sourceUri: string;
-  cachedUri: string;
-  fileName: string;
-  lastAccessed: number;
-  size: number;
-}
-
-// Configure notifications
+// Configure notifications (unchanged)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: false,
     shouldSetBadge: false,
     shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
   }),
 });
 
 // Main Music Player component
-export default function MusicPlayer(): JSX.Element {
+export default function MusicPlayer() {
   const dispatch = useDispatch();
   const currentTrack = useSelector((state: RootState) => state.musicPlayer.currentTrack);
   const isPlaying = useSelector((state: RootState) => state.musicPlayer.isPlaying);
   const currentTime = useSelector((state: RootState) => state.musicPlayer.currentTime);
   const duration = useSelector((state: RootState) => state.musicPlayer.duration);
 
-  // State for the player
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [sliderValue, setSliderValue] = useState<number>(0);
   const [isSliding, setIsSliding] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Refs for maintaining values between renders
   const soundRef = useRef<Audio.Sound | null>(null);
   const positionUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef<boolean>(true);
 
-  // Load sound when current track changes
+  // Animation shared values
+  const playButtonScale = useSharedValue(1);
+  const pauseButtonScale = useSharedValue(1);
+  const titleOpacity = useSharedValue(1);
+  const sliderProgress = useSharedValue(0);
+
+  // Animated styles for play/pause buttons
+  const playButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: playButtonScale.value }],
+    opacity: isPlaying ? 0 : 1,
+  }));
+
+  const pauseButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pauseButtonScale.value }],
+    opacity: isPlaying ? 1 : 0,
+  }));
+
+  // Animated style for track title
+  const titleStyle = useAnimatedStyle(() => ({
+    opacity: titleOpacity.value,
+  }));
+
+  // Animated style for slider progress
+  const sliderStyle = useAnimatedStyle(() => ({
+    width: `${(sliderProgress.value / (duration || 1)) * 100}%`,
+    height: 4,
+    backgroundColor: `#1DB954`,
+    position: 'absolute',
+    borderRadius:3,
+    left: 0,
+    top: 0,
+  }));
+
+  // Setup audio mode
+  useEffect(() => {
+    const setupAudio = async () => {
+      try {
+        const interruptionModeAndroid = Audio.InterruptionModeAndroid?.DoNotMix ?? 1;
+        const interruptionModeIOS = Audio.InterruptionModeIOS?.DoNotMix ?? 1;
+        await Audio.setAudioModeAsync({
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+          interruptionModeAndroid,
+          interruptionModeIOS,
+          playsInSilentModeIOS: true,
+        });
+      } catch (error) {
+        console.log('Error setting audio mode:', error);
+      }
+    };
+    setupAudio();
+  }, []);
+
+  // Animate play/pause button on state change
+  useEffect(() => {
+    playButtonScale.value = withSpring(isPlaying ? 0.8 : 1, { damping: 10 });
+    pauseButtonScale.value = withSpring(isPlaying ? 1 : 0.8, { damping: 10 });
+  }, [isPlaying]);
+
+  // Animate track title on track change
   useEffect(() => {
     if (currentTrack) {
+      titleOpacity.value = 0;
+      titleOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.exp) });
       loadSound(currentTrack.uri);
     }
     return () => {
@@ -98,6 +136,13 @@ export default function MusicPlayer(): JSX.Element {
       }
     };
   }, [currentTrack]);
+
+  // Update slider progress
+  useEffect(() => {
+    if (isPlaying && !isSliding) {
+      sliderProgress.value = withTiming(currentTime, { duration: 1000, easing: Easing.linear });
+    }
+  }, [currentTime, isPlaying, isSliding]);
 
   // Update position when playing
   useEffect(() => {
@@ -118,7 +163,6 @@ export default function MusicPlayer(): JSX.Element {
         clearInterval(positionUpdateIntervalRef.current);
       }
     }
-
     return () => {
       if (positionUpdateIntervalRef.current) {
         clearInterval(positionUpdateIntervalRef.current);
@@ -126,22 +170,18 @@ export default function MusicPlayer(): JSX.Element {
     };
   }, [isPlaying, dispatch]);
 
-  // Load sound function
+  // Load sound
   const loadSound = async (uri: string) => {
     try {
       setIsLoading(true);
-      
-      // Unload previous sound if exists
       if (soundRef.current) {
         await soundRef.current.unloadAsync();
       }
-
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri },
-        { shouldPlay: false },
+        { shouldPlay: false, isLooping: false, progressUpdateIntervalMillis: 1000 },
         onPlaybackStatusUpdate
       );
-
       soundRef.current = newSound;
       setSound(newSound);
       setIsLoaded(true);
@@ -150,10 +190,13 @@ export default function MusicPlayer(): JSX.Element {
       Alert.alert('Error', 'Failed to load audio file');
     } finally {
       setIsLoading(false);
+      if (isPlaying) {
+        playSound();
+      }
     }
   };
 
-  // Playback status update handler
+  // Playback status update
   const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (status.isLoaded) {
       dispatch(setDuration(status.durationMillis || 0));
@@ -161,9 +204,11 @@ export default function MusicPlayer(): JSX.Element {
         dispatch(setCurrentTime(status.positionMillis));
         setSliderValue(status.positionMillis);
       }
-      
       if (status.didJustFinish) {
         dispatch(setIsPlaying(false));
+        dispatch(setCurrentTime(0));
+        setSliderValue(0);
+        sliderProgress.value = 0;
       }
     }
   };
@@ -203,6 +248,7 @@ export default function MusicPlayer(): JSX.Element {
         dispatch(setIsPlaying(false));
         dispatch(setCurrentTime(0));
         setSliderValue(0);
+        sliderProgress.value = 0;
       }
     } catch (error) {
       console.log('Error stopping sound:', error);
@@ -210,23 +256,21 @@ export default function MusicPlayer(): JSX.Element {
     }
   };
 
-  // Handle slider value change
+  // Handle slider gesture
   const handleSliderValueChange = (value: number) => {
     setIsSliding(true);
     setSliderValue(value);
+    sliderProgress.value = value;
   };
 
-  // Handle slider sliding complete
   const handleSliderSlidingComplete = async (value: number) => {
     if (!soundRef.current || !isLoaded) {
       setIsSliding(false);
       return;
     }
-
     try {
       await soundRef.current.setPositionAsync(value);
       dispatch(setCurrentTime(value));
-      
       if (isPlaying) {
         await soundRef.current.playAsync();
       }
@@ -237,10 +281,9 @@ export default function MusicPlayer(): JSX.Element {
     }
   };
 
-  // Format time for display
+  // Format time
   const formatTime = (millis: number): string => {
     if (!millis) return '0:00';
-    
     const totalSeconds = Math.floor(millis / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -251,74 +294,69 @@ export default function MusicPlayer(): JSX.Element {
     <View style={styles.container}>
       {isLoaded && (
         <View>
-          
-          <Text style={ {
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#333',
-    padding:6
-  }}
-  ellipsizeMode="middle"
-  numberOfLines={1}
-  >
-    
-            {currentTrack!.title}
-          {/* <ScrollingText title={currentTrack!.title}/> */}
-            </Text>
-        <View style={styles.sliderContainer}>
-          <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-          <Slider
-            style={styles.slider}
-            minimumValue={0}
-            maximumValue={duration || 1}
-            value={sliderValue}
-            minimumTrackTintColor="#1DB954"
-            maximumTrackTintColor="#d3d3d3"
-            thumbTintColor="#1DB954"
-            onValueChange={handleSliderValueChange}
-            onSlidingComplete={handleSliderSlidingComplete}
-            disabled={isLoading}
-          />
-          <Text style={styles.timeText}>{formatTime(duration)}</Text>
-        </View>
-        
+          <Animated.Text
+            style={[
+              {
+                fontSize: 13,
+                fontWeight: '400',
+                color: '#333333',
+                padding: 6,
+              },
+              titleStyle,
+            ]}
+            ellipsizeMode="middle"
+            numberOfLines={1}
+          >
+            {isLoading ? 'Loading audio...' : currentTrack!.title}
+          </Animated.Text>
+          <View style={styles.sliderContainer}>
+            <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+            <View style={styles.sliderWrapper}>
+              <Animated.View style={sliderStyle} />
+              <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={duration || 1}
+                value={sliderValue}
+                minimumTrackTintColor="transparent"
+                maximumTrackTintColor="#d3d3d3"
+                thumbTintColor="#1DB954"
+                onValueChange={handleSliderValueChange}
+                onSlidingComplete={handleSliderSlidingComplete}
+                disabled={isLoading}
+              />
+            </View>
+            <Text style={styles.timeText}>{formatTime(duration)}</Text>
+          </View>
         </View>
       )}
-      
       <View style={styles.controlsContainer}>
         <TouchableOpacity
           style={[styles.controlButton, (!isPlaying || isLoading) && styles.disabledButton]}
           onPress={pauseSound}
           disabled={!isPlaying || isLoading}
         >
-          <Text style={styles.controlButtonText}><Ionicons name='pause' size={20} /></Text>
+          <Animated.View style={pauseButtonStyle}>
+            <Ionicons name="pause" size={20} color="white" />
+          </Animated.View>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[
-            styles.controlButton, 
-            (!currentTrack || isPlaying || isLoading) && styles.disabledButton
-          ]}
+          style={[styles.controlButton, (!currentTrack || isPlaying || isLoading) && styles.disabledButton]}
           onPress={playSound}
           disabled={!currentTrack || isPlaying || isLoading}
         >
-          <Text style={styles.controlButtonText}><Ionicons name='play' size={20} /></Text>
+          <Animated.View style={playButtonStyle}>
+            <Ionicons name="play" size={20} color="white" />
+          </Animated.View>
         </TouchableOpacity>
-        
-        
         <TouchableOpacity
           style={[styles.controlButton, (!isLoaded || isLoading) && styles.disabledButton]}
           onPress={stopSound}
           disabled={!isLoaded || isLoading}
         >
-          <Text style={styles.controlButtonText}><Ionicons name='stop' size={20} /></Text>
+          <Ionicons name="stop" size={20} color="white" />
         </TouchableOpacity>
       </View>
-      
-      {isLoading && (
-        <View style={styles.loadingIndicator}>
-          <Text style={styles.loadingText}>Loading audio file...</Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -327,16 +365,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    paddingTop:10,
+    paddingTop: 0,
     backgroundColor: '#f5f5f5',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  fileText: {
-    marginVertical: 15,
-    fontSize: 10,
-    color: '#333',
-    textAlign: 'center',
   },
   sliderContainer: {
     width: '100%',
@@ -345,14 +377,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginVertical: 0,
   },
-  slider: {
+  sliderWrapper: {
     flex: 1,
     marginHorizontal: 10,
-    // height: 20,  // Increased height for better touch target
+    position: 'relative',
+  },
+  slider: {
+    width: '100%',
+    height: 40,
   },
   timeText: {
     fontSize: 12,
-    color: '#666',
+    color: '#666666',
     width: 40,
     textAlign: 'center',
   },
@@ -370,26 +406,8 @@ const styles = StyleSheet.create({
     minWidth: 100,
     alignItems: 'center',
   },
-  controlButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
   disabledButton: {
     backgroundColor: '#cccccc',
     opacity: 0.7,
-  },
-  loadingIndicator: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    paddingVertical: 5,
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#333',
-    fontSize: 12,
   },
 });

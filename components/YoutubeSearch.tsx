@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, TextInput, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, StyleSheet, Text, TextInput, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Type definitions
 interface YouTubeVideo {
@@ -16,7 +17,7 @@ interface YouTubeVideo {
   duration?: string;
 }
 
-interface AudioFile {
+export interface AudioFile {
   uri?: string;
   filepath?: string;
   name: string;
@@ -24,7 +25,6 @@ interface AudioFile {
   thumbnail?: string;
 }
 
-// Update MusicFile interface to include all required properties
 interface MusicFile {
   _id: string;
   id: string;
@@ -42,17 +42,12 @@ interface YouTubeSearchProps {
 // Function to request storage permissions
 const requestStoragePermission = async () => {
   console.log('Requesting storage permission...');
-  
   try {
-    // For true persistence, we need media library permissions
-    console.log('Requesting media library permission');
     const { status, canAskAgain } = await MediaLibrary.getPermissionsAsync();
-    
     if (status === 'granted') {
       console.log('Permission already granted');
       return true;
     }
-    
     if (canAskAgain) {
       console.log('Asking for permission...');
       const { status: newStatus } = await MediaLibrary.requestPermissionsAsync();
@@ -61,7 +56,6 @@ const requestStoragePermission = async () => {
         return true;
       }
     }
-    
     console.log('Permission denied or cannot ask');
     Alert.alert(
       'Permission Required',
@@ -82,9 +76,7 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [isDownloading, setIsDownloading] = useState<{ [key: string]: boolean }>({});
   const [error, setError] = useState<string | null>(null);
-  const AUDIO_BASE_URL = useSelector((state: RootState) => state.musicPlayer.converterAPI);
-
-  console.log("INITIAL BASEURI: ", AUDIO_BASE_URL);
+  const AUDIO_BASE_URL = useSelector((state: RootState) => state.musicPlayer.converterAPI) || 'https://fifth-funky-caps-dev.trycloudflare.com';
   const API_BASE_URL = 'https://broke-beats.vercel.app';
 
   const searchYouTube = async () => {
@@ -96,33 +88,31 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
     setIsSearching(true);
     setError(null);
     setVideos([]);
+    setFastTracks([]);
 
     try {
-      const dbResponse = await fetch(`${API_BASE_URL}/api/search?q=${query}`);
-      const dbData = await dbResponse.json();
-      console.log("🤖🤖🤖 ", dbData);
+      const [dbResponse, ytResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/search?q=${encodeURIComponent(query)}`),
+        fetch(
+          `${API_BASE_URL}/api/youtube-search?q=${encodeURIComponent(query + ' official audio')}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+          }
+        ),
+      ]);
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/youtube-search?q=${encodeURIComponent(query + ' official audio')}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const [dbData, ytData] = await Promise.all([dbResponse.json(), ytResponse.json()]);
 
-      if (!response.ok) {
-        throw new Error(`YouTube search failed: ${response.status}`);
+      if (!dbResponse.ok || !dbData.success) {
+        throw new Error(dbData.error || 'Database search failed');
       }
-
-      const data = await response.json();
-      if (!data.success || !data.results) {
-        throw new Error(data.error || 'No results found');
+      if (!ytResponse.ok || !ytData.success) {
+        throw new Error(ytData.error || 'YouTube search failed');
       }
 
       setVideos(
-        data.results.map((video: any) => ({
+        ytData.results.map((video: any) => ({
           id: video.id,
           url: video.url,
           title: video.title,
@@ -131,10 +121,22 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
           duration: video.duration,
         }))
       );
-      setFastTracks(dbData!.results);
+      setFastTracks(
+        dbData.results
+          .filter((track: any) => track._id && track.title && track.filepath)
+          .map((track: any) => ({
+            _id: track._id,
+            id: track._id,
+            title: track.title,
+            artist: track.author,
+            author: track.author,
+            filepath: track.filepath,
+            thumbnail: track.thumbnail,
+          }))
+      );
     } catch (err: any) {
-      console.error('YouTube search error:', err);
-      setError('Failed to search YouTube. Please try again.');
+      console.error('Search error:', err);
+      setError('Failed to search. Please check your connection and try again.');
     } finally {
       setIsSearching(false);
     }
@@ -142,7 +144,6 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
 
   const initiateDownload = async (video: YouTubeVideo) => {
     setIsDownloading(prev => ({ ...prev, [video.id]: true }));
-
     try {
       const response = await fetch(`${API_BASE_URL}/api/download?url=${encodeURIComponent(video.url)}`, {
         method: 'PUT',
@@ -153,172 +154,27 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       });
 
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.error || `Download failed: ${response.status}`);
       }
-
       if (data.status === 'processing') {
         Alert.alert('Info', `Track "${video.title}" is being processed. Please try again later.`);
         return;
       }
-
       if (!data.url || !data.filename) {
         throw new Error(data.message || 'Invalid response from download API');
       }
 
-      // Create track object
       const track: AudioFile = {
         filepath: `${AUDIO_BASE_URL}${data.url}`,
         name: data.title || video.title,
         source: 'youtube',
         thumbnail: video.thumbnail,
       };
-
-      // Add to music player
       onTrackAdd(track);
       Alert.alert('Success', `Track "${data.title || video.title}" added to your library`);
     } catch (err: any) {
       console.error('Download error:', err);
-      Alert.alert('Error', err.message === 'This video is already being processed'
-        ? 'This track is already being processed. Please wait.'
-        : `Failed to add track: ${err.message}`);
-    } finally {
-      setIsDownloading(prev => ({ ...prev, [video.id]: false }));
-    }
-  };
-
-  const initiateFastDownload = async (video: MusicFile) => {
-    setIsDownloading((prev) => ({ ...prev, [video._id]: true }));
-  
-    try {
-      console.log("AUDIO_BASE_URL:", AUDIO_BASE_URL);
-      console.log("video:", video);
-      console.log("video.filepath:", video.filepath);
-  
-      if (!video.filepath) {
-        throw new Error("Invalid filepath: filepath is missing or undefined");
-      }
-  
-      if (!AUDIO_BASE_URL) {
-        throw new Error("AUDIO_BASE_URL is not set");
-      }
-  
-      // Request media library permissions for persistent storage
-      const permissionGranted = await requestStoragePermission();
-      
-      // Determine the storage directory - use document directory if permissions not granted
-      const storageDir = permissionGranted ? 
-        FileSystem.documentDirectory : 
-        FileSystem.cacheDirectory;
-        
-      if (!storageDir) {
-        throw new Error("Storage directory is not available");
-      }
-  
-      const downloadURI = `${AUDIO_BASE_URL.replace(/\/$/, '')}/${video.filepath.replace(/^\//, '')}`;
-      console.log("downloadURI:", downloadURI);
-      
-      // Create a sanitized filename (remove special characters that may cause issues)
-      const safeTitle = video.title.replace(/[^a-zA-Z0-9]/g, '_');
-      const tempFilePath = `${FileSystem.cacheDirectory}${safeTitle}_${video._id}_${Date.now()}.mp3`;
-      console.log("Downloading to temp location:", tempFilePath);
-      
-      // Download file to temporary location first
-      try {
-        const response = await FileSystem.downloadAsync(downloadURI, tempFilePath);
-        console.log("FileSystem Response:", response);
-  
-        if (response.status !== 200) {
-          throw new Error(`Download failed with status: ${response.status}`);
-        }
-      } catch (downloadErr) {
-        console.error("Download error:", downloadErr);
-        throw new Error(`Download failed: ${downloadErr.message || "Unknown error"}`);
-      }
-  
-      // Check if file exists after download
-      const fileInfo = await FileSystem.getInfoAsync(tempFilePath);
-      console.log("File exists at", tempFilePath, ":", fileInfo.exists, "size:", fileInfo.size);
-  
-      if (!fileInfo.exists || (fileInfo.size && fileInfo.size === 0)) {
-        throw new Error("Downloaded file not found or is empty");
-      }
-      
-      let finalPath = tempFilePath;
-      let filename = video.title ? `${video.title}.mp3` : `track_${video._id}.mp3`;
-      
-      // If permission was granted, save to media library for persistence
-      if (permissionGranted) {
-        try {
-          // Save to media library
-          const asset = await MediaLibrary.createAssetAsync(tempFilePath);
-          console.log("Created media library asset:", asset);
-          
-          // Create a Broke Beats album if it doesn't exist
-          const albums = await MediaLibrary.getAlbumsAsync();
-          let album = albums.find(a => a.title === "Broke Beats");
-          
-          if (!album) {
-            album = await MediaLibrary.createAlbumAsync("Broke Beats", asset, false);
-            console.log("Created 'Broke Beats' album:", album);
-          } else {
-            // Add to the existing album
-            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-            console.log("Added to 'Broke Beats' album");
-          }
-          
-          // Get the local URI for the asset
-          const assetInfo = await MediaLibrary.getAssetInfoAsync(asset);
-          if (assetInfo.localUri) {
-            finalPath = assetInfo.localUri;
-            console.log("Permanent file path:", finalPath);
-          }
-        } catch (mediaErr) {
-          console.error("Media library error:", mediaErr);
-          // Continue with the temporary file if media library fails
-          console.log("Falling back to temporary file");
-        }
-      } else {
-        // If no permission, use DocumentDirectory for semi-persistence
-        const docFilePath = `${FileSystem.documentDirectory}${safeTitle}_${video._id}.mp3`;
-        
-        try {
-          // Copy from cache to document directory (more persistent)
-          await FileSystem.copyAsync({
-            from: tempFilePath,
-            to: docFilePath
-          });
-          console.log("Copied to document directory:", docFilePath);
-          finalPath = docFilePath;
-          
-          // Delete the temporary file
-          await FileSystem.deleteAsync(tempFilePath);
-        } catch (copyErr) {
-          console.error("Error copying to document directory:", copyErr);
-          // Fall back to cache file if copy fails
-        }
-      }
-  
-      const track: AudioFile = {
-        // Ensure proper file URI format based on platform
-        filepath: Platform.OS === 'ios' ? finalPath : finalPath.startsWith('file://') ? finalPath : `file://${finalPath}`,
-        name: filename,
-        source: 'mongo',
-        thumbnail: video.thumbnail,
-      };
-  
-      console.log("Adding track to library:", track);
-      onTrackAdd(track);
-  
-      Alert.alert(
-        'Success', 
-        permissionGranted ? 
-          `Track "${filename}" added to your library and saved to your device` : 
-          `Track "${filename}" added to your library`
-      );
-    } catch (err: any) {
-      console.error('Download Error:', err);
       Alert.alert(
         'Error',
         err.message.includes('already being processed')
@@ -326,10 +182,198 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
           : `Failed to add track: ${err.message}`
       );
     } finally {
+      setIsDownloading(prev => ({ ...prev, [video.id]: false }));
+    }
+  };
+
+  const initiateFastDownload = async (video: MusicFile) => {
+    console.log('Starting fast download for:', video.title);
+    setIsDownloading((prev) => ({ ...prev, [video._id]: true }));
+    let tempFilePath = '';
+
+    try {
+      // Validate inputs
+      if (!video.filepath) {
+        throw new Error('Invalid filepath: filepath is missing or undefined');
+      }
+      if (!AUDIO_BASE_URL) {
+        throw new Error('AUDIO_BASE_URL is not set');
+      }
+
+      // Request and verify permissions
+      const permissionGranted = await requestStoragePermission();
+      const storageDir = permissionGranted ? FileSystem.documentDirectory : FileSystem.cacheDirectory;
+      if (!storageDir) {
+        throw new Error('Storage directory is not available');
+      }
+
+      // Construct download URL and file paths
+      const downloadURI = `${AUDIO_BASE_URL.replace(/\/$/, '')}/${video.filepath.replace(/^\//, '')}`;
+      const safeTitle = video.title.replace(/[^a-zA-Z0-9]/g, '_');
+      tempFilePath = `${FileSystem.cacheDirectory}${safeTitle}_${video._id}_${Date.now()}.mp3`;
+      let finalPath = tempFilePath;
+      const filename = video.title ? `${video.title}.mp3` : `track_${video._id}.mp3`;
+
+      console.log('Downloading from:', downloadURI);
+      // Download file to temporary location
+      const response = await FileSystem.downloadAsync(downloadURI, tempFilePath);
+      if (response.status !== 200) {
+        throw new Error(`Download failed with status: ${response.status}`);
+      }
+
+      // Verify downloaded file
+      const fileInfo = await FileSystem.getInfoAsync(tempFilePath);
+      if (!fileInfo.exists || (fileInfo.size && fileInfo.size === 0)) {
+        throw new Error('Downloaded file not found or is empty');
+      }
+
+      // Save thumbnail if available
+      let thumbnailPath: string | undefined;
+      if (video.thumbnail) {
+        console.log('Downloading thumbnail:', video.thumbnail);
+        const thumbnailFileName = `${safeTitle}_${video._id}_thumb.jpg`;
+        const thumbnailTempPath = `${FileSystem.cacheDirectory}${thumbnailFileName}`;
+        try {
+          const thumbnailResponse = await FileSystem.downloadAsync(video.thumbnail, thumbnailTempPath);
+          if (thumbnailResponse.status === 200) {
+            const thumbnailDocPath = `${FileSystem.documentDirectory}${thumbnailFileName}`;
+            await FileSystem.copyAsync({ from: thumbnailTempPath, to: thumbnailDocPath });
+            thumbnailPath = thumbnailDocPath;
+            await FileSystem.deleteAsync(thumbnailTempPath, { idempotent: true });
+          } else {
+            console.warn('Thumbnail download failed:', thumbnailResponse.status);
+          }
+        } catch (thumbnailErr) {
+          console.warn('Failed to save thumbnail:', thumbnailErr);
+        }
+      }
+
+      if (permissionGranted) {
+        console.log('Saving to media library...');
+        // Re-check permissions before media library operations
+        const { status } = await MediaLibrary.getPermissionsAsync();
+        if (status !== 'granted') {
+          console.warn('Media library permission lost');
+          throw new Error('Media library permission denied');
+        }
+
+        // Save to media library
+        let asset;
+        try {
+          asset = await MediaLibrary.createAssetAsync(tempFilePath);
+        } catch (assetErr) {
+          console.error('Failed to create asset:', assetErr);
+          throw new Error('Failed to save to media library');
+        }
+
+        let album;
+        try {
+          const albums = await MediaLibrary.getAlbumsAsync();
+          album = albums.find((a) => a.title === 'Broke Beats');
+          if (!album) {
+            album = await MediaLibrary.createAlbumAsync('Broke Beats', asset, false);
+          } else {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+          }
+        } catch (albumErr) {
+          console.error('Failed to manage album:', albumErr);
+          throw new Error('Failed to save to album');
+        }
+
+        let assetInfo;
+        try {
+          assetInfo = await MediaLibrary.getAssetInfoAsync(asset);
+        } catch (infoErr) {
+          console.error('Failed to get asset info:', infoErr);
+          throw new Error('Failed to retrieve asset info');
+        }
+
+        if (assetInfo.localUri) {
+          finalPath = assetInfo.localUri;
+        } else {
+          console.warn('No localUri in assetInfo');
+        }
+
+        // Delete temporary file
+        try {
+          await FileSystem.deleteAsync(tempFilePath, { idempotent: true });
+        } catch (deleteErr) {
+          console.warn('Failed to delete temporary file:', deleteErr);
+        }
+      } else {
+        console.log('Saving to document directory...');
+        // Save to document directory for semi-persistence
+        const docFilePath = `${FileSystem.documentDirectory}${safeTitle}_${video._id}.mp3`;
+        try {
+          await FileSystem.copyAsync({ from: tempFilePath, to: docFilePath });
+          finalPath = docFilePath;
+        } catch (copyErr) {
+          console.error('Failed to copy to document directory:', copyErr);
+          throw new Error('Failed to save to document directory');
+        }
+
+        try {
+          await FileSystem.deleteAsync(tempFilePath, { idempotent: true });
+        } catch (deleteErr) {
+          console.warn('Failed to delete temporary file:', deleteErr);
+        }
+      }
+
+      // Save metadata to AsyncStorage
+      console.log('Saving metadata to AsyncStorage...');
+      const metadata = {
+        id: video._id,
+        title: video.title,
+        artist: video.artist || video.author || 'Unknown Artist',
+        filepath: finalPath,
+        thumbnail: thumbnailPath,
+        source: 'mongo',
+      };
+      try {
+        await AsyncStorage.setItem(`track_${video._id}`, JSON.stringify(metadata));
+      } catch (storageErr) {
+        console.error('Failed to save metadata:', storageErr);
+        throw new Error('Failed to save track metadata');
+      }
+
+      // Create track object
+      const track: AudioFile = {
+        filepath: finalPath.startsWith('file://') ? finalPath : `file://${finalPath}`,
+        name: filename,
+        source: 'mongo',
+        thumbnail: thumbnailPath,
+      };
+
+      console.log('Adding track to library:', track);
+      onTrackAdd(track);
+      Alert.alert(
+        'Success',
+        permissionGranted
+          ? `Track "${filename}" added to your library and saved to your device`
+          : `Track "${filename}" added to your library (may not persist after uninstall)`
+      );
+    } catch (err: any) {
+      console.error('Fast download error:', err);
+      // Clean up temporary file if it exists
+      if (tempFilePath) {
+        try {
+          await FileSystem.deleteAsync(tempFilePath, { idempotent: true });
+        } catch (deleteErr) {
+          console.warn('Failed to clean up temporary file:', deleteErr);
+        }
+      }
+      Alert.alert(
+        'Error',
+        err.message.includes('already being processed')
+          ? 'This track is already being processed. Please wait.'
+          : `Failed to add track: ${err.message || 'Unknown error'}`
+      );
+    } finally {
+      console.log('Download complete for:', video.title);
       setIsDownloading((prev) => ({ ...prev, [video._id]: false }));
     }
   };
-  
+
   const renderVideoItem = ({ item }: { item: YouTubeVideo }) => (
     <TouchableOpacity
       style={[styles.videoItem, isDownloading[item.id] && styles.disabledItem]}
@@ -387,19 +431,20 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       </View>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
-
+      <Text style={styles.sectionTitle}>Fast Download</Text>
       <FlatList
         data={fastTracks}
         renderItem={renderFastTrack}
         keyExtractor={item => item._id}
-        style={styles.videoList}
+        style={styles.fastDownloadList}
         ListEmptyComponent={
           <Text style={styles.emptyText}>
-            {isSearching ? 'Searching...' : fastTracks.length === 0 && query ? 'No fast tracks found' : ''}
+            {isSearching ? 'Searching in Database...' : fastTracks.length === 0 && query ? 'No fast tracks found' : 'Search for a song'}
           </Text>
         }
       />
       
+      <Text style={styles.sectionTitle}>Add in the Global Library</Text>
       <FlatList
         data={videos}
         renderItem={renderVideoItem}
@@ -407,7 +452,7 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
         style={styles.videoList}
         ListEmptyComponent={
           <Text style={styles.emptyText}>
-            {isSearching ? 'Searching...' : videos.length === 0 && query ? 'No videos found' : 'Search for a song'}
+            {isSearching ? 'Searching in YouTube...' : videos.length === 0 && query ? 'No videos found' : 'Search for a song'}
           </Text>
         }
       />
@@ -416,6 +461,12 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
 };
 
 const styles = StyleSheet.create({
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#444444',
+    padding: 12,
+  },
   container: {
     width: '100%',
     backgroundColor: 'white',
@@ -435,7 +486,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderColor: '#ddd',
+    borderColor: '#dddddd',
     borderWidth: 1,
     borderRadius: 20,
     backgroundColor: '#f8f9fa',
@@ -449,7 +500,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     fontSize: 14,
-    color: '#333',
+    color: '#333333',
   },
   searchButton: {
     backgroundColor: '#6200ee',
@@ -470,7 +521,11 @@ const styles = StyleSheet.create({
   },
   videoList: {
     width: '100%',
-    maxHeight: "85%",
+    height: "40%",
+  },
+  fastDownloadList: {
+    width: '100%',
+    height: "40%",
   },
   videoItem: {
     flexDirection: 'row',
@@ -494,11 +549,11 @@ const styles = StyleSheet.create({
   videoTitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#333',
+    color: '#333333',
   },
   videoChannel: {
     fontSize: 12,
-    color: '#888',
+    color: '#888888',
     marginTop: 4,
   },
   loader: {
@@ -512,9 +567,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#999',
+    color: '#999999',
     textAlign: 'center',
     marginTop: 12,
+    marginBottom: 12,
+    height: "100%",
+    display: "flex",
+    justifyContent: "center",
+    alignContent: "center"
   },
 });
 

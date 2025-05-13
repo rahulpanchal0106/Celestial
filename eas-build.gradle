@@ -1,0 +1,12 @@
+
+// android {
+//     packagingOptions {
+//         exclude '**/values/values.xml'
+//     }
+// }
+configurations.all {
+    resolutionStrategy {
+        force 'com.google.android.gms:play-services-base:18.5.0'
+        force 'androidx.appcompat:appcompat:1.6.1'
+    }
+}

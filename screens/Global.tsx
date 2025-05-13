@@ -1,19 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import YouTubeSearch from "../components/YoutubeSearch";
+// import YouTubeSearch from "../components/YoutubeSearch";
+import GlobalMusicFileList from "../components/GlobalList";
 
-export default function Search(){
+export default function Global(){
     return (<View style={styles.container}>
 
-        <Text style={styles.sectionTitle}>YouTube Search</Text>
-        <View style={{}}>
-          {/* <Ionicons 
-            name={searchExpanded ? "chevron-up" : "chevron-down"} 
-            size={20} 
-            color="#444"
-          /> */}
-          <YouTubeSearch onTrackAdd={()=>{}} />
-        </View>
+        <Text style={styles.sectionTitle}>Global Library</Text>
+          <GlobalMusicFileList/>
     </View>)
 }
 
@@ -25,7 +19,7 @@ const styles = StyleSheet.create({
         paddingTop: 40,
         // height:70,
         // overflow:"scroll",
-        paddingBottom:300
+        paddingBottom:130
     },
     sectionTitle: {
         fontSize: 26,

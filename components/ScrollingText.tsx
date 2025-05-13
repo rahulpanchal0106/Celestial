@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   fileName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: '#333333',
   },
 });
 

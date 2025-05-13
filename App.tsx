@@ -1,15 +1,97 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Provider } from 'react-redux';
+import { Provider, useDispatch } from 'react-redux';
 import { store } from './store/store';
 import MusicPlayer from './components/MusicPlayer';
 import HomeScreen from './screens/HomeScreen';
 import Search from './screens/Search';
+import { setConverterAPI } from './store/musicPlayerSlice';
+import GlobalMusicFileList from './components/GlobalList';
+import Global from './screens/Global';
 
 const Tab = createBottomTabNavigator();
+
+function CustomTabBar({ state, descriptors, navigation }: any) {
+  const dispatch = useDispatch();
+
+  // Your handleRefresh function, moved inside CustomTabBar to access dispatch
+  const handleRefresh = async () => {
+    try {
+      const result = await fetch('https://broke-beats.vercel.app/api/music', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await result.json();
+      console.log('CONVAPI: ', data);
+      if (data.convAPI) {
+        console.log('🔥🔥🔥🔥');
+        dispatch(setConverterAPI(data.convAPI));
+        Alert.alert('Success', 'ConvAPI refreshed successfully!');
+      } else {
+        console.log('-----------');
+        throw new Error('CONVAPI NOT FOUND: ' + JSON.stringify(data));
+      }
+    } catch (e) {
+      console.error('Error fetching the Convapi: ', e);
+      Alert.alert('Error', 'Failed to fetch the ConvAPI');
+    }
+  };
+
+  return (
+    <View style={styles.tabBar}>
+      {state.routes.map((route: any, index: number) => {
+        const { options } = descriptors[route.key];
+        const isFocused = state.index === index;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        const iconName = route.name === 'Home' ? 'home' :route.name === 'Global' ?'globe': 'search';
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            style={styles.tabButton}
+            onPress={onPress}               
+            accessibilityRole="button"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel}
+          >
+            <Ionicons
+              name={iconName}
+              size={24}
+              color={isFocused ? '#6200ee' : '#888'}
+            />
+          </TouchableOpacity>
+        );
+      })}
+      {/* Refresh ConvAPI Button */}
+      <TouchableOpacity
+        style={styles.refreshButton}
+        onPress={handleRefresh}
+        accessibilityRole="button"
+        accessibilityLabel="Refresh ConvAPI"
+      >
+        <Ionicons name="refresh" size={24} color="#000000" />
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export default function App() {
   return (
@@ -17,22 +99,17 @@ export default function App() {
       <View style={styles.container}>
         <NavigationContainer>
           <Tab.Navigator
-            screenOptions={({ route }) => ({
+            screenOptions={{
               headerShown: false,
-              tabBarIcon: ({ color, size }) => {
-                let iconName = route.name === 'Home' ? 'home' : 'search';
-                return <Ionicons name={iconName} size={size} color={color} />;
-              },
               tabBarStyle: {
                 height: 60,
-                
               },
-            })}
+            }}
+            tabBar={(props) => <CustomTabBar {...props} />}
           >
             <Tab.Screen name="Home" component={HomeScreen} />
             <Tab.Screen name="Search" component={Search} />
-            {/* <Tab.Screen name="Profile1" component={ProfileScreen} />
-            <Tab.Screen name="Profile2" component={ProfileScreen} /> */}
+            <Tab.Screen name="Global" component={Global} />
           </Tab.Navigator>
         </NavigationContainer>
 
@@ -48,13 +125,36 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    color: 'black'
+    color: 'black',
   },
   musicPlayerContainer: {
     position: 'absolute',
-    bottom:60, // height of the tab bar
+    bottom: 60, // Height of the tab bar
     left: 0,
     right: 0,
     zIndex: 100,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    height: 60,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  refreshButton: {
+    // backgroundColor: '#6200ee',
+    borderRadius: 20,
+    color:"black",
+    padding: 10,
+    marginRight: 10,
   },
 });

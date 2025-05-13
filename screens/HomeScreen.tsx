@@ -35,6 +35,6 @@ const styles = StyleSheet.create({
         paddingTop: 20,
         // height:70,
         // overflow:"scroll",
-        paddingBottom:120
+        paddingBottom:70
     }
 });

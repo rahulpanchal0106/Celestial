@@ -1,407 +1,198 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import * as FileSystem from 'expo-file-system';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as DocumentPicker from 'expo-document-picker';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../store/store';
-import { setCurrentTrack, setPlaylist, setConverterAPI } from '../store/musicPlayerSlice';
+import { View, StyleSheet, Text, FlatList, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import ScrollingText from './ScrollingText';
+import * as MediaLibrary from 'expo-media-library';
+import { useDispatch } from 'react-redux';
+import { setCurrentTrack } from '../store/musicPlayerSlice';
+import { AudioFile } from './YoutubeSearch';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export interface MusicFile {
-  id: string;
-  title: string;
-  artist: string;
-  uri: string;
-  duration: number;
-  isFavorite: boolean;
-  author?:string;
-  filepath?:string;
+interface MusicFileListProps {
+  onTrackSelect?: (track: AudioFile) => void; // Optional callback for track selection
 }
 
-const MUSIC_DIR = `${FileSystem.documentDirectory}music/`;
-const FAVORITES_KEY = 'favorite-music-files';
-// Replace with the actual base URL for audio files, if provided by the API
-// var AUDIO_BASE_URL = 'https://fifth-funky-caps-dev.trycloudflare.com';
-
-export default function MusicFileList() {
+const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
   const dispatch = useDispatch();
-  const currentTrack = useSelector((state: RootState) => state.musicPlayer.currentTrack);
-  const convAPI = useSelector((state: RootState) => state.musicPlayer.converterAPI);
-  const [musicFiles, setMusicFiles] = useState<MusicFile[]>([]);
-  const [favoriteFiles, setFavoriteFiles] = useState<Set<string>>(new Set());
+  const [musicFiles, setMusicFiles] = useState<AudioFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Request media library permissions and load music files
+  useEffect(() => {
+    loadMusicFiles();
+  }, []);
+  const loadMusicFiles = async () => {
+    setIsLoading(true);
+    setError(null);
   
-  const AUDIO_BASE_URL= convAPI || "https://fifth-funky-caps-dev.trycloudflare.com"
-  // Initialize music directory
-  useEffect(() => {
-    const initMusicDir = async () => {
-      try {
-        const dirInfo = await FileSystem.getInfoAsync(MUSIC_DIR);
-        if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
-        }
-      } catch (error) {
-        console.error('Error creating music directory:', error);
-      }
-    };
-    initMusicDir();
-  }, []);
-
-  // Load favorite files
-  useEffect(() => {
-    const loadFavorites = async () => {
-      try {
-        const favoritesStr = await AsyncStorage.getItem(FAVORITES_KEY);
-        if (favoritesStr) {
-          setFavoriteFiles(new Set(JSON.parse(favoritesStr)));
-        }
-      } catch (error) {
-        console.error('Error loading favorites:', error);
-      }
-    };
-    loadFavorites();
-  }, []);
-
-  // Fetch tracks from API
-  const fetchTracks = async () => {
     try {
-      setIsLoading(true);
-      const response = await fetch('https://broke-beats.vercel.app/api/search?q=.*');
-      const data = await response.json();
-
-      // console.log('Fetched data:', data);
-
-      if (data.success && data.results && Array.isArray(data.results)) {
-        const newTracks: MusicFile[] = data.results
-          .filter((track: any) => track._id && track.title && track.author && track.length)
-          .reverse()
-          .map((track: any) => {
-            // Handle filepath: prepend base URL if it's a relative path
-            let uri = track.filepath;
-            // console.log("🎷🎷 filepath: ",track.filepath)
-            if (uri.endsWith('.mp3')) {
-              uri = `${AUDIO_BASE_URL}${track.filepath}`;
-              // console.log("🔥🔥 uri: ",uri)
-            } else if (uri.startsWith('https://youtube.com') || !uri.endsWith('.mp3')) {
-              // Skip YouTube URLs or non-mp3 files (or handle differently if API provides audio URLs)
-              uri = ''; // Placeholder; replace with actual audio URL if available
-            }
-
-            return {
-              id: track._id,
-              title: track.title || 'Unknown Title',
-              artist: track.author || 'Unknown Artist',
-              uri: uri || '',
-              duration: track.length || 0,
-              isFavorite: favoriteFiles.has(track._id),
-            };
-          })
-          .filter((track: MusicFile) => track.uri); // Exclude tracks without a valid URI
-
-        // console.log('Processed tracks:', newTracks);
-
-        setMusicFiles([...newTracks]);
-        dispatch(setPlaylist([...newTracks]));
-      } else {
-        console.error('Invalid data format received:', data);
-        Alert.alert('Error', 'Invalid data format from server');
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        setError('Media library permission denied. Cannot access music files.');
+        Alert.alert(
+          'Permission Required',
+          'Please grant media library permissions to access your music files.',
+          [{ text: 'OK' }]
+        );
+        setIsLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Error fetching tracks:', error);
-      Alert.alert('Error', 'Failed to fetch tracks from the server');
+  
+      const albums = await MediaLibrary.getAlbumsAsync();
+      const brokeBeatsAlbum = albums.find((album) => album.title === 'Broke Beats');
+  
+      if (!brokeBeatsAlbum) {
+        setError('No music files found in Broke Beats album.');
+        setIsLoading(false);
+        return;
+      }
+  
+      const assets = await MediaLibrary.getAssetsAsync({
+        album: brokeBeatsAlbum,
+        mediaType: ['audio'],
+        first: 100,
+      });
+  
+      // Retrieve metadata from AsyncStorage
+      const files: AudioFile[] = [];
+      for (const asset of assets.assets) {
+        // Try to find metadata in AsyncStorage
+        const metadataKeys = await AsyncStorage.getAllKeys();
+        const trackKey = metadataKeys.find((key) => key.startsWith('track_') && key.includes(asset.filename));
+        let track: AudioFile = {
+          filepath: asset.uri,
+          name: asset.filename || `Track_${asset.id}`,
+          source: 'mongo',
+          thumbnail: undefined,
+        };
+  
+        if (trackKey) {
+          const metadataStr = await AsyncStorage.getItem(trackKey);
+          if (metadataStr) {
+            const metadata = JSON.parse(metadataStr);
+            track = {
+              filepath: metadata.filepath,
+              name: metadata.title || asset.filename,
+              source: metadata.source,
+              thumbnail: metadata.thumbnail,
+            };
+          }
+        }
+  
+        files.push(track);
+      }
+  
+      setMusicFiles(files);
+    } catch (err: any) {
+      console.error('Error loading music files:', err);
+      setError('Failed to load music files. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Initial load
-  useEffect(() => {
-    const loadData = async () => {
-      await fetchTracks();
-    };
-    loadData();
-  }, [favoriteFiles]);
-
-  // Pick audio file
-  const pickAudioFile = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'audio/*',
-        copyToCacheDirectory: true,
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const file = result.assets[0];
-        const fileName = file.name;
-        const fileUri = file.uri;
-        const fileId = `local_${Date.now()}`;
-
-        const newFile: MusicFile = {
-          id: fileId,
-          title: fileName,
-          artist: 'Local File',
-          uri: fileUri,
-          duration: 0,
-          isFavorite: false,
-        };
-
-        const updatedFiles = [newFile, ...musicFiles];
-        setMusicFiles(updatedFiles);
-        dispatch(setPlaylist(updatedFiles));
-      }
-    } catch (error) {
-      console.error('Error picking file:', error);
-      Alert.alert('Error', 'Failed to pick audio file');
+  const handleTrackSelect = (track: AudioFile) => {
+    dispatch(setCurrentTrack({
+      uri: track.filepath!,
+      title: track.name,
+      thumbnail: track.thumbnail,
+    }));
+    if (onTrackSelect) {
+      onTrackSelect(track);
     }
   };
 
-  // Toggle favorite
-  const toggleFavorite = async (fileId: string) => {
-    try {
-      const newFavorites = new Set(favoriteFiles);
-      if (newFavorites.has(fileId)) {
-        newFavorites.delete(fileId);
-      } else {
-        newFavorites.add(fileId);
-      }
-
-      setFavoriteFiles(newFavorites);
-      await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify([...newFavorites]));
-
-      setMusicFiles((prev) =>
-        prev.map((file) =>
-          file.id === fileId ? { ...file, isFavorite: !file.isFavorite } : file
-        )
-      );
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-    }
-  };
-
-  // Delete file
-  const deleteFile = async (fileId: string, uri: string) => {
-    try {
-      if (favoriteFiles.has(fileId)) {
-        const newFavorites = new Set(favoriteFiles);
-        newFavorites.delete(fileId);
-        setFavoriteFiles(newFavorites);
-        await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify([...newFavorites]));
-      }
-
-      const updatedFiles = musicFiles.filter((file) => file.id !== fileId);
-      setMusicFiles(updatedFiles);
-      dispatch(setPlaylist(updatedFiles));
-
-      if (uri.startsWith('file://')) {
-        await FileSystem.deleteAsync(uri);
-      }
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      Alert.alert('Error', 'Failed to delete file');
-    }
-  };
-
-  // Handle file selection
-  const handleFileSelect = (file: MusicFile) => {
-    dispatch(setCurrentTrack(file));
-  };
-
-  const handleRefresh = async()=>{
-    await fetchTracks();
-    try{
-      const result = await fetch("https://broke-beats.vercel.app/api/music",{
-        method:"PATCH",
-        headers:{
-          "Content-Type":"application/json", 
-        },
-        body:JSON.stringify({})
-      });
-      const data = await result.json();
-      console.log("CONVAPI: ",data)
-      if(data.convAPI){
-        console.log("🔥🔥🔥🔥")
-        dispatch(setConverterAPI(data.convAPI))
-        
-      }else{
-        console.log("-----------")
-        throw new Error("CONVAPI NOT FOUND: ",data)
-      }
-    }catch(e){
-      console.error("Error fetching the Convapi: ",e)
-      alert("Error fetching the convapi")
-    }
-  }
-
-  // Render file item
-  const renderFileItem = ({ item }: { item: MusicFile }) => {
-    const isSelected = currentTrack?.id === item.id;
-
-    return (
-      <TouchableOpacity
-        style={[styles.fileItem, isSelected && styles.selectedFileItem]}
-        onPress={() => handleFileSelect(item)}
-      >
-        <View style={styles.fileInfo}>
-          <Text style={styles.fileName} numberOfLines={1}>
-            {item.title}
-            {/* <ScrollingText title={item.title} /> */}
-          </Text>
-          <Text style={styles.fileArtist} numberOfLines={1}>
-            {item.artist}
-          </Text>
-        </View>
-
-        <View style={styles.fileActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => toggleFavorite(item.id)}
-          >
-            <Text style={styles.actionButtonText}>
-              {item.isFavorite ? '❤️' : '🤍'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => deleteFile(item.id, item.uri)}
-          >
-            <Text style={styles.actionButtonText}>🗑️</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1DB954" />
+  const renderMusicFile = ({ item }: { item: AudioFile }) => (
+    <TouchableOpacity
+      style={styles.fileItem}
+      onPress={() => handleTrackSelect(item)}
+    >
+      {item.thumbnail ? (
+        <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
+      ) : (
+        <Ionicons name="musical-note" size={40} color="#6200ee" style={styles.icon} />
+      )}
+      <View style={styles.fileInfo}>
+        <Text style={styles.fileName} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <Text style={styles.fileSource}>
+          Source: {item.source === 'mongo' ? 'Downloaded' : item.source}
+        </Text>
       </View>
-    );
-  }
+    </TouchableOpacity>
+  );
 
-  
   return (
     <View style={styles.container}>
-      {/* <Text style={{color:"black", padding:10, paddingTop:30, width:"100%", fontWeight:700, fontSize:30}}>My Music Player</Text> */}
-      <View style={{
-        display:"flex",
-        flexDirection:"row",
-        justifyContent:"space-evenly",
-        alignContent: "center",
-        // top:5
-      }}>
-        <TouchableOpacity style={styles.addButton} onPress={pickAudioFile}>
-          <Text style={styles.addButtonText}>Add Music File</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.refreshButton} onPress={async()=>await handleRefresh()}>
-          <Text style={styles.addButtonText}><Ionicons name='reload' size={25} /></Text>
-        </TouchableOpacity>
-      </View>
-
-      {musicFiles.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No music files found</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={musicFiles}
-          renderItem={renderFileItem}
-          keyExtractor={(item) => item.id}
-          extraData={currentTrack}
-        />
-      )}
+      {isLoading && <ActivityIndicator size="large" color="#6200ee" />}
+      {error && <Text style={styles.errorText}>{error}</Text>}
+      <FlatList
+        data={musicFiles}
+        renderItem={renderMusicFile}
+        keyExtractor={(item, index) => `${item.filepath}-${index}`}
+        ListEmptyComponent={
+          !isLoading && !error ? (
+            <Text style={styles.emptyText}>No music files found in Broke Beats album.</Text>
+          ) : null
+        }
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={true}
+      />
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    height:"50%"
+    backgroundColor: '#fff',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  addButton: {
-    backgroundColor: '#1DB954',
-    padding: 15,
-    width:"70%",
-    margin: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  refreshButton: {
-    backgroundColor: '#1DB954',
-    padding: 15,
-    width:"15%",
-    margin: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+  listContent: {
+    padding: 16,
+    paddingBottom: 100, // Add extra padding at bottom for better scrolling
   },
   fileItem: {
     flexDirection: 'row',
-    padding: 15,
+    padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    backgroundColor: 'white',
+    borderBottomColor: '#f0f0f0',
     alignItems: 'center',
-    borderRadius:20
   },
-  selectedFileItem: {
-    backgroundColor: '#e8f5e9',
-    borderRadius:20
+  thumbnail: {
+    width: 50,
+    height: 50,
+    borderRadius: 5,
+    marginRight: 12,
+  },
+  icon: {
+    marginRight: 12,
   },
   fileInfo: {
     flex: 1,
-    marginRight: 10,
   },
   fileName: {
     fontSize: 16,
     fontWeight: '500',
     color: '#333',
   },
-  fileArtist: {
-    fontSize: 14,
-    color: '#666',
+  fileSource: {
+    fontSize: 12,
+    color: '#888',
     marginTop: 4,
   },
-  fileActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  errorText: {
+    fontSize: 14,
+    color: '#d32f2f',
+    textAlign: 'center',
+    marginVertical: 12,
   },
-  actionButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  actionButtonText: {
-    fontSize: 18,
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginVertical: 12,
   },
 });
+
+export default MusicFileList;
