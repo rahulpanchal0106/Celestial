@@ -426,12 +426,12 @@ export default function GlobalList() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.actionButton}
             onPress={() => deleteFile(item.id, item.uri)}
           >
             <Text style={styles.actionButtonText}>🗑️</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </TouchableOpacity>
     );

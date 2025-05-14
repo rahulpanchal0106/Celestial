@@ -157,13 +157,14 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       if (!response.ok) {
         throw new Error(data.error || `Download failed: ${response.status}`);
       }
+      console.log("DATA: ",data)
       if (data.status === 'processing') {
         Alert.alert('Info', `Track "${video.title}" is being processed. Please try again later.`);
         return;
       }
-      if (!data.url || !data.filename) {
-        throw new Error(data.message || 'Invalid response from download API');
-      }
+      // if (!data.url || !data.filename) {
+      //   throw new Error(data.message || 'Invalid response from download API');
+      // }
 
       const track: AudioFile = {
         filepath: `${AUDIO_BASE_URL}${data.url}`,
@@ -177,9 +178,9 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       console.error('Download error:', err);
       Alert.alert(
         'Error',
-        err.message.includes('already being processed')
+        err.message.includes('already')
           ? 'This track is already being processed. Please wait.'
-          : `Failed to add track: ${err.message}`
+          :`Download Failed: ${err.message}`
       );
     } finally {
       setIsDownloading(prev => ({ ...prev, [video.id]: false }));
@@ -374,8 +375,9 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
     }
   };
 
-  const renderVideoItem = ({ item }: { item: YouTubeVideo }) => (
+  const renderVideoItem = ({ item, i }: { item: YouTubeVideo, i:number }) => (
     <TouchableOpacity
+    key={i}
       style={[styles.videoItem, isDownloading[item.id] && styles.disabledItem]}
       onPress={() => initiateDownload(item)}
       disabled={isDownloading[item.id]}
@@ -389,13 +391,15 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
     </TouchableOpacity>
   );
 
-  const renderFastTrack = ({ item }: { item: MusicFile }) => (
+  const renderFastTrack = ({ item, i }: { item: MusicFile, i:number }) => (
     <TouchableOpacity
+    key={i}
       style={[styles.videoItem, isDownloading[item._id] && styles.disabledItem]}
       onPress={() => initiateFastDownload(item)}
       disabled={isDownloading[item._id]}
     >
       {item.thumbnail && <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />}
+      {!item.thumbnail && <Ionicons name='flash-outline' size={30} style={styles.fastThumbnail}/>}
       <View style={styles.videoInfo}>
         <Text style={styles.videoTitle} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.videoChannel}>{item.artist || item.author || 'Unknown Artist'}</Text>
@@ -431,8 +435,25 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       </View>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
-      <Text style={styles.sectionTitle}>Fast Download</Text>
-      <FlatList
+      <ScrollView>
+       <Text>
+        {isSearching ? 'Searching in Database...' : 
+        fastTracks.length === 0 && query ? 
+        'No fast tracks found' :
+        fastTracks.map((item,i)=>renderFastTrack({item,i}))
+        }
+        </Text>
+       
+       <Text>
+        {isSearching ? 'Searching in Youtube...' : 
+        fastTracks.length === 0 && query ? 
+        'No tracks found' :
+       videos.map((item,i)=>renderVideoItem({item,i}))
+        }
+        </Text>
+        
+
+      {/* <FlatList
         data={fastTracks}
         renderItem={renderFastTrack}
         keyExtractor={item => item._id}
@@ -442,9 +463,9 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
             {isSearching ? 'Searching in Database...' : fastTracks.length === 0 && query ? 'No fast tracks found' : 'Search for a song'}
           </Text>
         }
-      />
+      />  */}
       
-      <Text style={styles.sectionTitle}>Add in the Global Library</Text>
+      {/* <Text style={styles.sectionTitle}>Add in the Global Library</Text>
       <FlatList
         data={videos}
         renderItem={renderVideoItem}
@@ -452,10 +473,20 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
         style={styles.videoList}
         ListEmptyComponent={
           <Text style={styles.emptyText}>
-            {isSearching ? 'Searching in YouTube...' : videos.length === 0 && query ? 'No videos found' : 'Search for a song'}
+            
           </Text>
         }
-      />
+      /> */}
+
+      </ScrollView>
+      {
+        !(fastTracks.length>0 && videos.length>0) && (
+          <View style={{height:"90%", width:"100%" }}>
+            {/* <Ionicons name='logo-youtube' size={200} style={styles.emptyPage} /> */}
+            <Text style={{ width:"100%",height:"100%", textAlign:"center", paddingTop:"60%"}} >Search for any track in the world!</Text>
+          </View>
+        )
+      }
     </View>
   );
 };
@@ -473,7 +504,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 17,
     paddingBottom: 0,
-    marginBottom: 0,
+    marginBottom: 30,
     borderColor: "#CCCCCC",
     borderWidth: 1
   },
@@ -521,11 +552,11 @@ const styles = StyleSheet.create({
   },
   videoList: {
     width: '100%',
-    height: "40%",
+    // height: "40%",
   },
   fastDownloadList: {
     width: '100%',
-    height: "40%",
+    // height: "40%",
   },
   videoItem: {
     flexDirection: 'row',
@@ -542,6 +573,20 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 5,
     marginRight: 12,
+  },
+  fastThumbnail: {
+    width: 40,
+    height: 50,
+    borderRadius: 5,
+    marginRight: 5,
+    marginLeft: 0,
+  },
+  emptyPage: {
+    width: 400,
+    height: 200,
+    borderRadius: 5,
+    marginRight: 5,
+    marginLeft: 0,
   },
   videoInfo: {
     flex: 1,

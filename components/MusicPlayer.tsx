@@ -52,6 +52,7 @@ export default function MusicPlayer() {
   const isPlaying = useSelector((state: RootState) => state.musicPlayer.isPlaying);
   const currentTime = useSelector((state: RootState) => state.musicPlayer.currentTime);
   const duration = useSelector((state: RootState) => state.musicPlayer.duration);
+  const playlist = useSelector((state: RootState) => state.musicPlayer.playlist);
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
@@ -196,6 +197,28 @@ export default function MusicPlayer() {
     }
   };
 
+  // Play next track
+  const playNextTrack = () => {
+    if (!currentTrack || !playlist) return;
+    
+    const currentIndex = playlist.findIndex(track => track.id === currentTrack.id);
+    if (currentIndex < playlist.length - 1) {
+      const nextTrack = playlist[currentIndex + 1];
+      dispatch(setCurrentTrack(nextTrack));
+      dispatch(setIsPlaying(true));
+    }
+  };
+  const playPreviousTrack = () => {
+    if (!currentTrack || !playlist) return;
+    
+    const currentIndex = playlist.findIndex(track => track.id === currentTrack.id);
+    if (currentIndex < playlist.length - 1) {
+      const nextTrack = playlist[currentIndex - 1];
+      dispatch(setCurrentTrack(nextTrack));
+      dispatch(setIsPlaying(true));
+    }
+  };
+
   // Playback status update
   const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (status.isLoaded) {
@@ -205,10 +228,7 @@ export default function MusicPlayer() {
         setSliderValue(status.positionMillis);
       }
       if (status.didJustFinish) {
-        dispatch(setIsPlaying(false));
-        dispatch(setCurrentTime(0));
-        setSliderValue(0);
-        sliderProgress.value = 0;
+        playNextTrack();
       }
     }
   };
@@ -333,20 +353,29 @@ export default function MusicPlayer() {
       <View style={styles.controlsContainer}>
         <TouchableOpacity
           style={[styles.controlButton, (!isPlaying || isLoading) && styles.disabledButton]}
-          onPress={pauseSound}
+          onPress={playPreviousTrack}
           disabled={!isPlaying || isLoading}
         >
           <Animated.View style={pauseButtonStyle}>
-            <Ionicons name="pause" size={20} color="white" />
+            <Ionicons name="play-skip-back" size={20} color="white" />
           </Animated.View>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.controlButton, (!currentTrack || isPlaying || isLoading) && styles.disabledButton]}
-          onPress={playSound}
-          disabled={!currentTrack || isPlaying || isLoading}
+          style={[styles.controlButton, (!currentTrack || isLoading) && styles.disabledButton]}
+          onPress={isPlaying ? pauseSound : playSound}
+          disabled={!currentTrack || isLoading}
         >
-          <Animated.View style={playButtonStyle}>
-            <Ionicons name="play" size={20} color="white" />
+          <Animated.View style={isPlaying ? pauseButtonStyle : playButtonStyle}>
+            <Ionicons name={isPlaying ? "pause" : "play"} size={20} color="white" />
+          </Animated.View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.controlButton, (!isPlaying || isLoading) && styles.disabledButton]}
+          onPress={playNextTrack}
+          disabled={!isPlaying || isLoading}
+        >
+          <Animated.View style={pauseButtonStyle}>
+            <Ionicons name="play-skip-forward" size={20} color="white" />
           </Animated.View>
         </TouchableOpacity>
         <TouchableOpacity
@@ -403,7 +432,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
-    minWidth: 100,
+    minWidth: 80,
     alignItems: 'center',
   },
   disabledButton: {
