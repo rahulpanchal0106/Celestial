@@ -20,6 +20,7 @@ import ScrollingText from './ScrollingText';
 // import { Platform } from 'react-native';
 
 import { initiateFastDownload } from './InitiateFastDownload';
+import WaveformViewer from './waveformViewer';
 
 export interface MusicFile {
   id: string;
@@ -410,7 +411,7 @@ export default function GlobalList() {
             {item.artist}
           </Text>
         </View>
-
+      {/* <WaveformViewer url={`${item.filepath}` || ""}/> */}
         <View style={styles.fileActions}>
           <TouchableOpacity
             style={styles.actionButton}

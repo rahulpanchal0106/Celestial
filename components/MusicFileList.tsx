@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, FlatList, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { setCurrentTrack } from '../store/musicPlayerSlice';
 import { AudioFile } from './YoutubeSearch';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import WaveformViewer from './waveformViewer';
+import { RootState } from '../store/store';
 
 interface MusicFileListProps {
   onTrackSelect?: (track: AudioFile) => void; // Optional callback for track selection
@@ -13,6 +15,7 @@ interface MusicFileListProps {
 
 const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
   const dispatch = useDispatch();
+  const AUDIO_BASE_URL = useSelector((state: RootState) => state.musicPlayer.converterAPI) || 'https://fifth-funky-caps-dev.trycloudflare.com';
   const [musicFiles, setMusicFiles] = useState<AudioFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +119,7 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
         <Text style={styles.fileName} numberOfLines={1}>
           {item.name}
         </Text>
+        {/* <WaveformViewer url={`${item.filepath}` || ""}/> */}
         <Text style={styles.fileSource}>
           Source: {item.source === 'mongo' ? 'Downloaded' : item.source}
         </Text>
