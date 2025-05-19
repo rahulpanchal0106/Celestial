@@ -138,6 +138,7 @@ export const initiateFastDownload = async (
       }
     }
 
+    console.log("ASKING FRO PERMISSION AT INITIATEFAST DOWNLOAD...")
     let track: AudioFile;
     if (permissionGranted) {
       // Save to media library
@@ -146,15 +147,15 @@ export const initiateFastDownload = async (
       console.log("Asset created: ", asset);
 
       const albums = await MediaLibrary.getAlbumsAsync();
-      let album = albums.find((a) => a.title === 'Broke Beats');
+      let album = albums.find((a) => a.title === 'Celestial');
 
       if (!album) {
         console.log("Creating Broke Beats album...");
-        album = await MediaLibrary.createAlbumAsync('Broke Beats', asset, false);
+        album = await MediaLibrary.createAlbumAsync('Celestial', asset, false);
         console.log("Album created: ", album);
       } else {
-        console.log("Adding asset to Broke Beats album...");
-        await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+        console.log("Adding asset to Broke Beats album...",permissionGranted);
+        await MediaLibrary.addAssetsToAlbumAsync([asset], album, true);
         console.log("Asset added to album");
       }
 
@@ -229,8 +230,8 @@ export const initiateFastDownload = async (
     Alert.alert(
       'Success',
       permissionGranted
-        ? `Track "${video.title}" added to Broke Beats album`
-        : `Track "${video.title}" added to your library (may not persist after uninstall)`
+        ? `Track "${video.title}" added to local album.`
+        : `Track "${video.title}" added to the queue. Will be available in Celestial Library.`
     );
   } catch (err: any) {
     console.error('Download Error:', err);

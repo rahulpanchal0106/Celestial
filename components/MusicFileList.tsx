@@ -42,19 +42,20 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
       }
   
       const albums = await MediaLibrary.getAlbumsAsync();
-      const brokeBeatsAlbum = albums.find((album) => album.title === 'Broke Beats');
-  
-      if (!brokeBeatsAlbum) {
-        setError('No music files found in Broke Beats album.');
+      const brokeBeatsAlbum = albums.find((album) => album.title === 'Celestial');
+      console.log("!!!! ALBUM: ",brokeBeatsAlbum)
+      if ((!brokeBeatsAlbum || brokeBeatsAlbum==undefined )&& !isLoading ) {
+        setError('No music files found in local album.');
         setIsLoading(false);
         return;
       }
-  
+      
       const assets = await MediaLibrary.getAssetsAsync({
         album: brokeBeatsAlbum,
         mediaType: ['audio'],
         first: 100,
       });
+      console.log("!!!! ASSETS: ",assets )
   
       // Retrieve metadata from AsyncStorage
       const files: AudioFile[] = [];
@@ -95,18 +96,22 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
   };
 
   const handleTrackSelect = (track: AudioFile) => {
-    dispatch(setCurrentTrack({
-      uri: track.filepath!,
-      title: track.name,
-      thumbnail: track.thumbnail,
-    }));
+    if(!isLoading){
+      dispatch(setCurrentTrack({
+        uri: track.filepath!,
+        title: track.name,
+        thumbnail: track.thumbnail,
+      }));
+      
+    }
     if (onTrackSelect) {
       onTrackSelect(track);
     }
   };
 
-  const renderMusicFile = ({ item }: { item: AudioFile }) => (
+  const renderMusicFile = ({ item,i }: { item: AudioFile, i:number }) => (
     <TouchableOpacity
+    key={i}
       style={styles.fileItem}
       onPress={() => handleTrackSelect(item)}
     >
@@ -129,9 +134,9 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
 
   return (
     <View style={styles.container}>
-      {isLoading && <ActivityIndicator size="large" color="#6200ee" />}
+      {/* {isLoading && <ActivityIndicator size="large" color="#6200ee" />} */}
       {error && <Text style={styles.errorText}>{error}</Text>}
-      <FlatList
+      {/* <FlatList
         data={musicFiles}
         renderItem={renderMusicFile}
         keyExtractor={(item, index) => `${item.filepath}-${index}`}
@@ -142,7 +147,14 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
         }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={true}
-      />
+      /> */}
+        <View style={styles.listContent}>
+          {isLoading && (<ActivityIndicator size="large" color="#6200ee" />)}
+          {musicFiles.length === 0 ? 
+          <Text style={styles.emptyText}>No music files found in local album.</Text>:
+          musicFiles.map((item,i)=>renderMusicFile({item,i}))
+          }
+        </View>
     </View>
   );
 };
@@ -150,17 +162,21 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    // backgroundColor: '#fff',
   },
   listContent: {
     padding: 16,
-    paddingBottom: 100, // Add extra padding at bottom for better scrolling
+    paddingBottom: 100,
   },
   fileItem: {
     flexDirection: 'row',
     padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderWidth: 1,
+    // borderColor: '#f0f0f0',
+    borderColor: 'lightgray',
+    backgroundColor:'#f0f0f0',
+    borderRadius:10,
+    marginBottom:7,
     alignItems: 'center',
   },
   thumbnail: {

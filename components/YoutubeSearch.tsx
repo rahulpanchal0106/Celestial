@@ -21,8 +21,9 @@ export interface AudioFile {
   uri?: string;
   filepath?: string;
   name: string;
-  source: 'local' | 'mongo' | 'youtube';
+  source: string;
   thumbnail?: string;
+  duration?: string | number;
 }
 
 interface MusicFile {
@@ -169,11 +170,12 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       const track: AudioFile = {
         filepath: `${AUDIO_BASE_URL}${data.url}`,
         name: data.title || video.title,
-        source: 'youtube',
+        source: video.channel,
         thumbnail: video.thumbnail,
+        duration: video.duration
       };
       onTrackAdd(track);
-      Alert.alert('Success', `Track "${data.title || video.title}" added to your library`);
+      Alert.alert('Success', `Track "${data.title || video.title}" added to global download queue`);
     } catch (err: any) {
       console.error('Download error:', err);
       Alert.alert(
@@ -270,9 +272,9 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
         let album;
         try {
           const albums = await MediaLibrary.getAlbumsAsync();
-          album = albums.find((a) => a.title === 'Broke Beats');
+          album = albums.find((a) => a.title === 'Celestial');
           if (!album) {
-            album = await MediaLibrary.createAlbumAsync('Broke Beats', asset, false);
+            album = await MediaLibrary.createAlbumAsync('Celestial', asset, false);
           } else {
             await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
           }
@@ -386,6 +388,7 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       <View style={styles.videoInfo}>
         <Text style={styles.videoTitle} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.videoChannel}>{item.channel}</Text>
+        <Text style={styles.videoChannel}>{item.duration}</Text>
       </View>
       {isDownloading[item.id] && <ActivityIndicator size="small" color="#6200ee" style={styles.loader} />}
     </TouchableOpacity>
@@ -415,7 +418,7 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
           <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Enter song name (e.g., Bohemian Rhapsody)"
+            placeholder="Enter song or artist name"
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={searchYouTube}
@@ -435,19 +438,21 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       </View>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
-      <ScrollView>
+      <ScrollView style={{
+        height:"100%"
+      }}>
        <Text>
         {isSearching ? 'Searching in Database...' : 
         fastTracks.length === 0 && query ? 
-        'No fast tracks found' :
+        "No matching tracks found on database" :
         fastTracks.map((item,i)=>renderFastTrack({item,i}))
         }
         </Text>
        
        <Text>
         {isSearching ? 'Searching in Youtube...' : 
-        fastTracks.length === 0 && query ? 
-        'No tracks found' :
+        videos.length === 0 && query ? 
+        "No tracks found on Youtube" :
        videos.map((item,i)=>renderVideoItem({item,i}))
         }
         </Text>
@@ -480,10 +485,10 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
 
       </ScrollView>
       {
-        !(fastTracks.length>0 && videos.length>0) && (
+        (!isSearching&&fastTracks.length==0 && videos.length==0) && (
           <View style={{height:"90%", width:"100%" }}>
             {/* <Ionicons name='logo-youtube' size={200} style={styles.emptyPage} /> */}
-            <Text style={{ width:"100%",height:"100%", textAlign:"center", paddingTop:"60%"}} >Search for any track in the world!</Text>
+            <Text style={{ width:"100%",height:"100%", textAlign:"center"}} >Search for any track in the world!</Text>
           </View>
         )
       }
@@ -500,18 +505,19 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
-    backgroundColor: 'white',
+    // backgroundColor: 'white',
     borderRadius: 8,
     padding: 17,
     paddingBottom: 0,
-    marginBottom: 30,
-    borderColor: "#CCCCCC",
-    borderWidth: 1
+    paddingTop: 0,
+    // marginBottom: "80%",
+    // borderColor: "#CCCCCC",
+    // borderWidth: 1
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    // marginBottom: 12,
   },
   inputContainer: {
     flex: 1,

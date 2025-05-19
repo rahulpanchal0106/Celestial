@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Alert, StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,15 +9,16 @@ import MusicPlayer from './components/MusicPlayer';
 import HomeScreen from './screens/HomeScreen';
 import Search from './screens/Search';
 import { setConverterAPI } from './store/musicPlayerSlice';
-import GlobalMusicFileList from './components/GlobalList';
 import Global from './screens/Global';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import ArtistsPage from './components/Artists';
+import ArtistScreen from './screens/ArtistsScreen';
 
 const Tab = createBottomTabNavigator();
 
 function CustomTabBar({ state, descriptors, navigation }: any) {
   const dispatch = useDispatch();
 
-  // Your handleRefresh function, moved inside CustomTabBar to access dispatch
   const handleRefresh = async () => {
     try {
       const result = await fetch('https://broke-beats.vercel.app/api/music', {
@@ -30,11 +31,9 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
       const data = await result.json();
       console.log('CONVAPI: ', data);
       if (data.convAPI) {
-        console.log('🔥🔥🔥🔥');
         dispatch(setConverterAPI(data.convAPI));
         Alert.alert('Success', 'ConvAPI refreshed successfully!');
       } else {
-        console.log('-----------');
         throw new Error('CONVAPI NOT FOUND: ' + JSON.stringify(data));
       }
     } catch (e) {
@@ -61,13 +60,13 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           }
         };
 
-        const iconName = route.name === 'Home' ? 'home' :route.name === 'Global' ?'globe': 'search';
+        const iconName = route.name === 'Home' ? 'home' : route.name === 'Global' ? 'globe': route.name === 'Artists'? 'people' : 'search';
 
         return (
           <TouchableOpacity
             key={route.key}
             style={styles.tabButton}
-            onPress={onPress}               
+            onPress={onPress}
             accessibilityRole="button"
             accessibilityState={isFocused ? { selected: true } : {}}
             accessibilityLabel={options.tabBarAccessibilityLabel}
@@ -80,15 +79,14 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           </TouchableOpacity>
         );
       })}
-      {/* Refresh ConvAPI Button */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.refreshButton}
         onPress={handleRefresh}
         accessibilityRole="button"
         accessibilityLabel="Refresh ConvAPI"
       >
         <Ionicons name="refresh" size={24} color="#000000" />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 }
@@ -96,36 +94,44 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 export default function App() {
   return (
     <Provider store={store}>
-      <View style={styles.container}>
-        <NavigationContainer>
-          <Tab.Navigator
-            screenOptions={{
-              headerShown: false,
-              tabBarStyle: {
-                height: 60,
-              },
-            }}
-            tabBar={(props) => <CustomTabBar {...props} />}
-          >
-            <Tab.Screen name="Home" component={HomeScreen} />
-            <Tab.Screen name="Search" component={Search} />
-            <Tab.Screen name="Global" component={Global} />
-          </Tab.Navigator>
-        </NavigationContainer>
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <StatusBar />
+        <View style={styles.container}>
+          <NavigationContainer>
+            <Tab.Navigator
+              screenOptions={{
+                headerShown: false,
+                tabBarStyle: {
+                  height: 60,
+                },
+              }}
+              tabBar={(props) => <CustomTabBar {...props} />}
+            >
+              <Tab.Screen name="Home" component={HomeScreen} />
+              <Tab.Screen name="Search" component={Search} />
+              <Tab.Screen name="Global" component={Global} />
+              <Tab.Screen name="Artists" component={ArtistScreen} />
+            </Tab.Navigator>
+          </NavigationContainer>
 
-        {/* MusicPlayer shown above the tab bar always */}
-        <View style={styles.musicPlayerContainer}>
-          <MusicPlayer />
+          <View style={styles.musicPlayerContainer}>
+            <MusicPlayer />
+          </View>
         </View>
-      </View>
+      </SafeAreaView>
     </Provider>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff', // Match your app's background
+  },
   container: {
     flex: 1,
-    color: 'black',
+    padding: 0,
+    margin: 0,
   },
   musicPlayerContainer: {
     position: 'absolute',
@@ -133,6 +139,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
+    padding: 0,
   },
   tabBar: {
     flexDirection: 'row',
@@ -151,9 +158,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   refreshButton: {
-    // backgroundColor: '#6200ee',
     borderRadius: 20,
-    color:"black",
     padding: 10,
     marginRight: 10,
   },

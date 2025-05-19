@@ -1,17 +1,19 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface Track {
+export interface Track {
   id: string;
   title: string;
   artist?: string;
   uri: string;
   duration?: number;
+  isFavorite?:boolean;
 }
 
 interface MusicPlayerState {
   currentTrack: Track | null;
   isPlaying: boolean;
   playlist: Track[];
+  artistPlaylist: Track[];
   currentTime: number;
   duration: number;
   converterAPI: string;
@@ -21,6 +23,7 @@ const initialState: MusicPlayerState = {
   currentTrack: null,
   isPlaying: false,
   playlist: [],
+  artistPlaylist:[],
   currentTime: 0,
   duration: 0,
   converterAPI:"null==="
@@ -38,6 +41,9 @@ const musicPlayerSlice = createSlice({
     },
     setPlaylist: (state, action: PayloadAction<Track[]>) => {
       state.playlist = action.payload;
+    },
+    setArtistPlaylist: (state, action: PayloadAction<Track[]>) => {
+      state.artistPlaylist = action.payload;
     },
     setCurrentTime: (state, action: PayloadAction<number>) => {
       state.currentTime = action.payload;
@@ -80,8 +86,8 @@ export const {
   setDuration,
   playNext,
   playPrevious,
-  setConverterAPI
-
+  setConverterAPI,
+  setArtistPlaylist
 } = musicPlayerSlice.actions;
 
 export default musicPlayerSlice.reducer; 

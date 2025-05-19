@@ -53,6 +53,7 @@ export default function MusicPlayer() {
   const currentTime = useSelector((state: RootState) => state.musicPlayer.currentTime);
   const duration = useSelector((state: RootState) => state.musicPlayer.duration);
   const playlist = useSelector((state: RootState) => state.musicPlayer.playlist);
+  const convAPI = useSelector((state: RootState) => state.musicPlayer.converterAPI);
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
@@ -90,7 +91,7 @@ export default function MusicPlayer() {
   const sliderStyle = useAnimatedStyle(() => ({
     width: `${(sliderProgress.value / (duration || 1)) * 100}%`,
     height: 4,
-    backgroundColor: `#1DB954`,
+    backgroundColor: `#6200ee`,
     position: 'absolute',
     borderRadius:3,
     left: 0,
@@ -129,10 +130,23 @@ export default function MusicPlayer() {
     if (currentTrack) {
       titleOpacity.value = 0;
       titleOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.exp) });
-      loadSound(currentTrack.uri);
+      console.log("URI DEFORE LOAD: ",currentTrack.uri)
+      let soundURI=currentTrack.uri;
+      if(currentTrack.uri.startsWith("null")){
+        const filepath = currentTrack.uri.split("/")[2];
+        console.log("CONVAPI AT MUSICPLAYER: ",convAPI)
+        soundURI = `${convAPI}/files/${filepath}`
+      }
+      console.log("SOUDURI TO BE LOADED: ",soundURI)
+      if(!soundURI.startsWith("null") && !isLoading){
+        loadSound(soundURI);
+      }
     }
     return () => {
-      if (soundRef.current) {
+      if (soundRef.current ) {
+        soundRef.current.unloadAsync();
+      }
+      if (soundRef.current && currentTrack?.uri.startsWith("null") ) {
         soundRef.current.unloadAsync();
       }
     };
@@ -340,7 +354,7 @@ export default function MusicPlayer() {
                 value={sliderValue}
                 minimumTrackTintColor="transparent"
                 maximumTrackTintColor="#d3d3d3"
-                thumbTintColor="#1DB954"
+                thumbTintColor="#6200ee"
                 onValueChange={handleSliderValueChange}
                 onSlidingComplete={handleSliderSlidingComplete}
                 disabled={isLoading}
@@ -428,7 +442,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   controlButton: {
-    backgroundColor: '#1DB954',
+    backgroundColor: '#6200ee',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,

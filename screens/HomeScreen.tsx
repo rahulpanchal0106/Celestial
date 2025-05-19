@@ -1,5 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import MusicFileList from "../components/MusicFileList";
+import CelestialTitle from "../components/Title";
+import { SafeAreaView } from "react-native-safe-area-context";
 // const handleFileSelect = async (uri: string, name: string): Promise<void> => {
 //     try {
 //       // Stop previous playback
@@ -20,21 +22,42 @@ import MusicFileList from "../components/MusicFileList";
 //   };
 export default function HomeScreen() {
     return (
-        <View style={styles.container}>
-             <Text style={{color:"black", padding:10, paddingTop:30, width:"100%", fontWeight:700, fontSize:30}}>My Music Player</Text>
+        <SafeAreaView style={styles.safeArea}>
+        <ScrollView style={styles.container}>
+            <CelestialTitle title="Celestial" atHome={true}/>
+            {/* <Text style={
+                {color:"black", 
+                padding:10,
+                textAlign:"center", 
+                paddingTop:110, 
+                paddingBottom:90, 
+                width:"100%", 
+                fontWeight:200, 
+                fontSize:50
+            }}>
+                Celestial
+            </Text> */}
             <MusicFileList />
-        </View>
+        </ScrollView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        padding:0,
+        margin:0,
+        backgroundColor: "#f8f9fa",
+      },
     container: {
         flex: 1,
         backgroundColor: '#f5f5f5',
-        padding: 10,
-        paddingTop: 20,
+        // padding: 10,
+        // paddingTop: 20,
         // height:70,
         // overflow:"scroll",
-        paddingBottom:70
+        paddingBottom:70,
+        marginBottom:70,
     }
 });

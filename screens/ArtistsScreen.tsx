@@ -3,21 +3,22 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-nati
 import YouTubeSearch from "../components/YoutubeSearch";
 import CelestialTitle from "../components/Title";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ArtistsPage from "../components/Artists";
 
-export default function Search() {
+export default function ArtistScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={styles.titleContainer}>
-          <CelestialTitle title="Search" />
+          <CelestialTitle title="Artists" />
         </View>
-        <View style={styles.searchContainer}>
+        <View style={styles.artistsContainer}>
           {/* <Ionicons
             name={searchExpanded ? "chevron-up" : "chevron-down"}
             size={20}
             color="#444"
           /> */}
-          <YouTubeSearch onTrackAdd={() => {}} />
+          <ArtistsPage/>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -43,7 +44,7 @@ const styles = StyleSheet.create({
     // borderStyle:"solid",
     // borderWidth:1,
   },
-  searchContainer: {
+  artistsContainer: {
     width: "100%",
   },
   sectionTitle: {

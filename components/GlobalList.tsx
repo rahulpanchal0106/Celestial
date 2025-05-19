@@ -329,6 +329,7 @@ export default function GlobalList() {
   // Toggle favorite - now triggers initiateFastDownload
   const toggleFavorite = async (file: MusicFile) => {
     // Map MusicFile to the format expected by initiateFastDownload
+    console.log("--------- ",file)
     const downloadFile = {
       _id: file.id,
       id: file.id,
@@ -369,7 +370,18 @@ export default function GlobalList() {
 
   // Handle file selection
   const handleFileSelect = (file: MusicFile) => {
-    dispatch(setCurrentTrack(file));
+
+    console.log("TRACK CURRENT: ",file)
+    let fillURI={};
+    if(file.uri.startsWith("null")){
+      fillURI={
+        ...file,
+        uri:`${convAPI || AUDIO_BASE_URL}${file.uri}`
+      }
+    }
+    if(!isLoading){
+      dispatch(setCurrentTrack(file));
+    }
   };
 
   const handleRefresh = async () => {
@@ -395,11 +407,12 @@ export default function GlobalList() {
   };
 
   // Render file item
-  const renderFileItem = ({ item }: { item: MusicFile }) => {
+  const renderFileItem = ({ item,i }: { item: MusicFile, i:number }) => {
     const isSelected = currentTrack?.id === item.id;
 
     return (
       <TouchableOpacity
+      key={i}
         style={[styles.fileItem, isSelected && styles.selectedFileItem]}
         onPress={() => handleFileSelect(item)}
       >
@@ -419,10 +432,10 @@ export default function GlobalList() {
             disabled={isDownloading[item.id]}
           >
             {isDownloading[item.id] ? (
-              <ActivityIndicator size="small" color="#1DB954" />
+              <ActivityIndicator size="small" color="#6200ee" />
             ) : (
               <Text style={styles.actionButtonText}>
-                {item.isFavorite ? '❤️' : '🤍'}
+                {item.isFavorite ? '❤️' : <Ionicons name='add-circle-outline' size={23} />}
               </Text>
             )}
           </TouchableOpacity>
@@ -441,7 +454,7 @@ export default function GlobalList() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1DB954" />
+        <ActivityIndicator size="large" color="#6200ee" />
       </View>
     );
   }
@@ -456,7 +469,7 @@ export default function GlobalList() {
           alignContent: 'center',
         }}
       >
-        <TouchableOpacity style={styles.addButton} onPress={pickAudioFile}>
+        <TouchableOpacity style={styles.addButton} onPress={!isLoading &&pickAudioFile}>
           <Text style={styles.addButtonText}>Add Music File</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.refreshButton} onPress={async () => await handleRefresh()}>
@@ -471,12 +484,26 @@ export default function GlobalList() {
           <Text style={styles.emptyText}>No music files found</Text>
         </View>
       ) : (
-        <FlatList
-          data={musicFiles}
-          renderItem={renderFileItem}
-          keyExtractor={(item) => item.id}
-          extraData={currentTrack}
-        />
+        // <FlatList
+        //   data={musicFiles}
+        //   renderItem={renderFileItem}
+        //   keyExtractor={(item) => item.id}
+        //   extraData={currentTrack}
+        // />
+        <View style={styles.listContent}>
+          {isLoading && (<ActivityIndicator size="large" color="#6200ee" />)}
+          {musicFiles.length === 0 ? 
+          <Text style={styles.emptyText}>No music files found in Local album. Add tracks from Celestial Library.</Text>:
+          musicFiles.map((item,i)=>renderFileItem({item,i}))
+          }
+        </View>
+      //   <View>
+      //   {isLoading && (<ActivityIndicator size="large" color="#6200ee" />)}
+      //   {musicFiles.length === 0 ? 
+      //   <Text style={styles.emptyText}>No music files found in Broke Beats album.</Text>:
+      //   musicFiles.map((item,i)=>renderFileItem({item,i}))
+      //   }
+      // </View>
       )}
     </View>
   );
@@ -485,8 +512,13 @@ export default function GlobalList() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    // backgroundColor: '#f5f5f5',
     height: '50%',
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 100,
+    paddingTop: 0,
   },
   loadingContainer: {
     flex: 1,
@@ -503,7 +535,7 @@ const styles = StyleSheet.create({
     color: '#666666',
   },
   addButton: {
-    backgroundColor: '#1DB954',
+    backgroundColor: '#6200ee',
     padding: 15,
     width: '70%',
     margin: 10,
@@ -511,7 +543,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   refreshButton: {
-    backgroundColor: '#1DB954',
+    backgroundColor: '#6200ee',
     padding: 15,
     width: '15%',
     margin: 10,
@@ -533,7 +565,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   selectedFileItem: {
-    backgroundColor: '#e8f5e9',
+    backgroundColor: '#ede7f6',
     borderRadius: 20,
   },
   fileInfo: {
