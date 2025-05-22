@@ -17,6 +17,7 @@ interface MusicPlayerState {
   currentTime: number;
   duration: number;
   converterAPI: string;
+  theme: string;
 }
 
 const initialState: MusicPlayerState = {
@@ -26,7 +27,8 @@ const initialState: MusicPlayerState = {
   artistPlaylist:[],
   currentTime: 0,
   duration: 0,
-  converterAPI:"null==="
+  converterAPI:"null===",
+  theme: "dark"
 };
 
 const musicPlayerSlice = createSlice({
@@ -35,6 +37,9 @@ const musicPlayerSlice = createSlice({
   reducers: {
     setCurrentTrack: (state, action: PayloadAction<Track>) => {
       state.currentTrack = action.payload;
+    },
+    setTheme: (state, action: PayloadAction<string>) => {
+      state.theme = action.payload;
     },
     setIsPlaying: (state, action: PayloadAction<boolean>) => {
       state.isPlaying = action.payload;
@@ -83,6 +88,7 @@ export const {
   setIsPlaying,
   setPlaylist,
   setCurrentTime,
+  setTheme,
   setDuration,
   playNext,
   playPrevious,

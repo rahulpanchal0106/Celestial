@@ -17,7 +17,6 @@ import { MusicFile } from './GlobalList';
 import { RootState } from '../store/store';
 import { AudioFile } from './YoutubeSearch';
 
-
 // Types
 type ArtistGroup = {
   author: string;
@@ -39,8 +38,50 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState<{ [key: string]: boolean }>({});
   const [expandedArtists, setExpandedArtists] = useState<ExpandedArtistsState>({});
-  const tracks = useSelector((state:RootState)=>state.musicPlayer.playlist);
+  const tracks = useSelector((state: RootState) => state.musicPlayer.playlist);
+  const theme = useSelector((state: RootState) => state.musicPlayer.theme);
   const dispatch = useDispatch();
+
+  const getThemeColors = () => {
+    console.log("♾️♾️♾️ Theme: ", theme);
+    if (!theme || theme === 'dark') {
+      return {
+        textColor: "#1a1a2e",
+        particleColor: "#000000",
+        gradientPrimary: "#4e3794",
+        underlineColor: "#1a1a2e",
+        backgroundColor: "#f5f5f5",
+        titleColor: "#333333",
+        timeTextColor: "#666666",
+        sliderThumbColor: "#6200ee",
+        sliderTrackColor: "#d3d3d3",
+        sliderProgressColor: "#6200ee",
+        buttonColor: "#6200ee",
+        buttonTextColor: "white",
+        disabledButtonColor: "#cccccc"
+      };
+    } else {
+      // Assuming 'light' theme for any non-dark theme
+      return {
+        textColor: "#ffffff",
+        particleColor: "#ffffff",
+        gradientPrimary: "#ffffff",
+        underlineColor: "#e0e0e0",
+        backgroundColor: "#121212",
+        titleColor: "#e0e0e0",
+        timeTextColor: "#b3b3b3",
+        sliderThumbColor: "#6200ee",
+        sliderTrackColor: "#4f4f4f",
+        sliderProgressColor: "#6200ee",
+        buttonColor: "#6200ee",
+        buttonTextColor: "white",
+        disabledButtonColor: "#333333"
+      };
+    }
+  };
+
+  const colors = getThemeColors();
+
   // Group tracks by artist and sort by track count
   const artistData: ArtistGroup[] = useMemo(() => {
     // Create a map of artist to their tracks
@@ -79,7 +120,7 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
 
   const toggleFavorite = async (file: MusicFile | Track) => {
     // Map MusicFile to the format expected by initiateFastDownload
-    console.log("--------- ",file)
+    console.log("--------- ", file);
     const downloadFile = {
       _id: file.id,
       id: file.id,
@@ -90,9 +131,9 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
       thumbnail: undefined, // Add thumbnail if available in your API data
     };
 
-    console.log("🎵🎵🎵 starting download")
-    await initiateFastDownload(downloadFile,setIsDownloading,onTrackAdd,convAPI);
-    console.log("🎵🎵🎵 FINisHED download")
+    console.log("🎵🎵🎵 starting download");
+    await initiateFastDownload(downloadFile, setIsDownloading, onTrackAdd, convAPI);
+    console.log("🎵🎵🎵 FINisHED download");
   };
 
   // Filter artists based on search (by artist name or track title)
@@ -131,34 +172,34 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
   };
 
   // Track card component
-
-  const TrackCard: React.FC<{ track: Track,i:number }> = ({ track,i }) => {
+  const TrackCard: React.FC<{ track: Track; i: number }> = ({ track, i }) => {
     const dispatch = useDispatch();
 
     return (
       <TouchableOpacity
         key={i}
-        style={styles.trackCard}
+        style={[styles.trackCard, { borderBottomColor: colors.underlineColor }]}
         onPress={() => {
-          dispatch(setCurrentTrack(track))
-          dispatch(setArtistPlaylist(tracks.filter((tr:Track)=>tr.artist===track.artist)))
+          dispatch(setCurrentTrack(track));
+          dispatch(setArtistPlaylist(tracks.filter((tr: Track) => tr.artist === track.artist)));
         }}
         activeOpacity={0.7}
       >
-        <Text style={styles.trackTitle}>{track.title}</Text>
-        <Text style={styles.trackLength}>{formatLength(track.duration)}</Text>
-
+        <Text style={[styles.trackTitle, { color: colors.titleColor }]}>{track.title}</Text>
+        <Text style={[styles.trackLength, { color: colors.timeTextColor }]}>
+          {formatLength(track.duration)}
+        </Text>
         <View style={styles.fileActions}>
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, { backgroundColor: colors.buttonColor }]}
             onPress={() => toggleFavorite(track)}
             disabled={isDownloading[track.id]}
           >
             {isDownloading[track.id] ? (
-              <ActivityIndicator size="small" color="#6200ee" />
+              <ActivityIndicator size="small" color={colors.buttonColor} />
             ) : (
-              <Text style={styles.actionButtonText}>
-                <Ionicons name='add-circle-outline' size={23} />
+              <Text style={[styles.actionButtonText, { color: colors.buttonTextColor }]}>
+                <Ionicons name="add-circle-outline" size={23} color={colors.buttonTextColor} />
               </Text>
             )}
           </TouchableOpacity>
@@ -168,19 +209,24 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
   };
 
   // Artist item component
-  const ArtistItem: React.FC<{ artist: ArtistGroup}> = ({ artist }) => {
+  const ArtistItem: React.FC<{ artist: ArtistGroup }> = ({ artist }) => {
     const isExpanded = !!expandedArtists[artist.author];
     return (
-      <View style={styles.artistContainer}>
+      <View style={[styles.artistContainer]}>
         <TouchableOpacity
-          style={styles.artistHeader}
+          style={[styles.artistHeader, { backgroundColor: colors.backgroundColor }]}
           onPress={() => toggleArtist(artist.author)}
         >
-          <Text style={styles.artistName}>
-            {artist.author} ({artist.tracks.length} track
-            {artist.tracks.length !== 1 ? 's' : ''})
+          <Text style={[styles.artistName, { color: colors.titleColor }]}>
+            {artist.author} ({artist.tracks.length} track{artist.tracks.length !== 1 ? 's' : ''})
           </Text>
-          <Text style={styles.arrow}>{isExpanded ? <Ionicons name='chevron-up-outline'/> : <Ionicons name='chevron-down-outline'/>}</Text>
+          <Text style={[styles.arrow, { color: colors.timeTextColor }]}>
+            {isExpanded ? (
+              <Ionicons name="chevron-up-outline" size={16} color={colors.timeTextColor} />
+            ) : (
+              <Ionicons name="chevron-down-outline" size={16} color={colors.timeTextColor} />
+            )}
+          </Text>
         </TouchableOpacity>
         {isExpanded && (
           <View style={styles.trackList}>
@@ -194,20 +240,27 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container]}>
       <TextInput
         placeholder="Search artists or tracks..."
         value={search}
         onChangeText={setSearch}
-        style={styles.searchInput}
+        style={[styles.searchInput, { 
+          borderColor: colors.underlineColor,
+          backgroundColor: colors.backgroundColor,
+          color: colors.textColor,
+        }]}
+        placeholderTextColor={colors.timeTextColor}
       />
       <ScrollView>
         {filteredArtists.length === 0 ? (
-          <Text style={styles.emptyText}>No artists found</Text>
+          <Text style={[styles.emptyText, { color: colors.timeTextColor }]}>
+            No artists found
+          </Text>
         ) : (
           filteredArtists.map((artist, i) => (
             <View key={i}>
-              <ArtistItem artist={artist}/>
+              <ArtistItem artist={artist} />
             </View>
           ))
         )}
@@ -217,33 +270,30 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
 };
 
 const styles = StyleSheet.create({
-    actionButton: {
-        padding: 8,
-        marginLeft: 8,
-      },
-    fileActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-      },
+  actionButton: {
+    padding: 8,
+    marginLeft: 8,
+    borderRadius: 5,
+  },
+  fileActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
     padding: 10,
-    // backgroundColor: '#f5f5f5',
   },
   actionButtonText: {
     fontSize: 18,
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
     padding: 10,
     marginBottom: 10,
     borderRadius: 5,
-    backgroundColor: '#fff',
   },
   artistContainer: {
     marginBottom: 10,
-    backgroundColor: '#fff',
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -252,16 +302,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 15,
-    backgroundColor: 'rgba(224,224,224,0.1)',
   },
   artistName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
   },
   arrow: {
     fontSize: 16,
-    color: '#666',
   },
   trackList: {
     paddingHorizontal: 10,
@@ -271,21 +318,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   trackTitle: {
     fontSize: 16,
-    color: '#333',
     flex: 1,
   },
   trackLength: {
     fontSize: 14,
-    color: '#666',
   },
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
-    color: '#666',
     marginTop: 20,
   },
 });

@@ -4,21 +4,65 @@ import YouTubeSearch from "../components/YoutubeSearch";
 import CelestialTitle from "../components/Title";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ArtistsPage from "../components/Artists";
+import { RootState } from "../store/store";
+import { useSelector } from "react-redux";
 
 export default function ArtistScreen() {
+  const theme = useSelector((state: RootState) => state.musicPlayer.theme);
+
+  const getThemeColors = () => {
+    console.log("♾️♾️♾️ Theme: ", theme);
+    if (!theme || theme === 'dark') {
+      return {
+        textColor: "#1a1a2e",
+        particleColor: "#000000",
+        gradientPrimary: "#4e3794",
+        underlineColor: "#1a1a2e",
+        backgroundColor: "#f5f5f5",
+        titleColor: "#333333",
+        timeTextColor: "#666666",
+        sliderThumbColor: "#6200ee",
+        sliderTrackColor: "#d3d3d3",
+        sliderProgressColor: "#6200ee",
+        buttonColor: "#6200ee",
+        buttonTextColor: "white",
+        disabledButtonColor: "#cccccc"
+      };
+    } else {
+      // Assuming 'light' theme for any non-dark theme
+      return {
+        textColor: "#ffffff",
+        particleColor: "#ffffff",
+        gradientPrimary: "#ffffff",
+        underlineColor: "#e0e0e0",
+        backgroundColor: "#121212",
+        titleColor: "#e0e0e0",
+        timeTextColor: "#b3b3b3",
+        sliderThumbColor: "#6200ee",
+        sliderTrackColor: "#4f4f4f",
+        sliderProgressColor: "#6200ee",
+        buttonColor: "#6200ee",
+        buttonTextColor: "white",
+        disabledButtonColor: "#333333"
+      };
+    }
+  };
+
+  const colors = getThemeColors();
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <SafeAreaView style={[styles.safeArea]}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.backgroundColor }]} contentContainerStyle={styles.contentContainer}>
         <View style={styles.titleContainer}>
           <CelestialTitle title="Artists" />
         </View>
-        <View style={styles.artistsContainer}>
+        <View>
           {/* <Ionicons
             name={searchExpanded ? "chevron-up" : "chevron-down"}
             size={20}
-            color="#444"
+            color={colors.timeTextColor}
           /> */}
-          <ArtistsPage/>
+          <ArtistsPage />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -28,11 +72,9 @@ export default function ArtistScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
   },
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
   },
   contentContainer: {
     paddingBottom: "40%",
@@ -40,9 +82,6 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     paddingVertical: 10,
-    // borderColor:"black",
-    // borderStyle:"solid",
-    // borderWidth:1,
   },
   artistsContainer: {
     width: "100%",
@@ -50,6 +89,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#444444",
-  }
+    // color: colors.titleColor,
+  },
 });

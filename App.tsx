@@ -3,16 +3,16 @@ import { StyleSheet, View, TouchableOpacity, Alert, StatusBar } from 'react-nati
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Provider, useDispatch } from 'react-redux';
-import { store } from './store/store';
+import { Provider, useDispatch, useSelector } from 'react-redux';
+import { RootState, store } from './store/store';
 import MusicPlayer from './components/MusicPlayer';
 import HomeScreen from './screens/HomeScreen';
 import Search from './screens/Search';
 import { setConverterAPI } from './store/musicPlayerSlice';
 import Global from './screens/Global';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ArtistsPage from './components/Artists';
 import ArtistScreen from './screens/ArtistsScreen';
+import SettingsList from './components/SettingsList';
 
 const Tab = createBottomTabNavigator();
 
@@ -60,7 +60,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           }
         };
 
-        const iconName = route.name === 'Home' ? 'home' : route.name === 'Global' ? 'globe': route.name === 'Artists'? 'people' : 'search';
+        const iconName = route.name === 'Home' ? 'home' : route.name === 'Global' ? 'globe' : route.name === 'Artists' ? 'people' : route.name === 'Settings' ? 'settings' : 'search';
 
         return (
           <TouchableOpacity
@@ -91,34 +91,82 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   );
 }
 
+// New child component to handle theme logic
+function AppContent() {
+  const theme = useSelector((state: RootState) => state.musicPlayer.theme);
+
+  const getThemeColors = () => {
+    console.log('♾️♾️♾️ Theme: ', theme);
+    if (!theme || theme === 'dark') {
+      return {
+        textColor: '#1a1a2e',
+        particleColor: '#000000',
+        gradientPrimary: '#4e3794',
+        underlineColor: '#1a1a2e',
+        backgroundColor: '#f5f5f5',
+        titleColor: '#333333',
+        timeTextColor: '#666666',
+        sliderThumbColor: '#6200ee',
+        sliderTrackColor: '#d3d3d3',
+        sliderProgressColor: '#6200ee',
+        buttonColor: '#6200ee',
+        buttonTextColor: 'white',
+        disabledButtonColor: '#cccccc',
+      };
+    } else {
+      return {
+        textColor: '#ffffff',
+        particleColor: '#ffffff',
+        gradientPrimary: '#ffffff',
+        underlineColor: '#e0e0e0',
+        backgroundColor: '#121212',
+        titleColor: '#e0e0e0',
+        timeTextColor: '#b3b3b3',
+        sliderThumbColor: '#6200ee',
+        sliderTrackColor: '#4f4f4f',
+        sliderProgressColor: '#6200ee',
+        buttonColor: '#6200ee',
+        buttonTextColor: 'white',
+        disabledButtonColor: '#333333',
+      };
+    }
+  };
+
+  const colors = getThemeColors();
+
+  return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.backgroundColor }]} edges={['bottom']}>
+      <StatusBar />
+      <View style={styles.container}>
+        <NavigationContainer>
+          <Tab.Navigator
+            screenOptions={{
+              headerShown: false,
+              tabBarStyle: {
+                height: 60,
+              },
+            }}
+            tabBar={(props) => <CustomTabBar {...props} />}
+          >
+            <Tab.Screen name="Home" component={HomeScreen} />
+            <Tab.Screen name="Search" component={Search} />
+            <Tab.Screen name="Global" component={Global} />
+            <Tab.Screen name="Artists" component={ArtistScreen} />
+            <Tab.Screen name="Settings" component={SettingsList} />
+          </Tab.Navigator>
+        </NavigationContainer>
+        <View style={styles.musicPlayerContainer}>
+          <MusicPlayer />
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
 export default function App() {
   return (
     <Provider store={store}>
-      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-        <StatusBar />
-        <View style={styles.container}>
-          <NavigationContainer>
-            <Tab.Navigator
-              screenOptions={{
-                headerShown: false,
-                tabBarStyle: {
-                  height: 60,
-                },
-              }}
-              tabBar={(props) => <CustomTabBar {...props} />}
-            >
-              <Tab.Screen name="Home" component={HomeScreen} />
-              <Tab.Screen name="Search" component={Search} />
-              <Tab.Screen name="Global" component={Global} />
-              <Tab.Screen name="Artists" component={ArtistScreen} />
-            </Tab.Navigator>
-          </NavigationContainer>
-
-          <View style={styles.musicPlayerContainer}>
-            <MusicPlayer />
-          </View>
-        </View>
-      </SafeAreaView>
+      <AppContent />
     </Provider>
   );
 }
@@ -126,7 +174,6 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff', // Match your app's background
   },
   container: {
     flex: 1,
@@ -144,9 +191,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     height: 60,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopWidth: 0,
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 10,

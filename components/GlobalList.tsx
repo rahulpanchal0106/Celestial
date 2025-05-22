@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,11 +17,14 @@ import { RootState } from '../store/store';
 import { setCurrentTrack, setPlaylist, setConverterAPI } from '../store/musicPlayerSlice';
 import { Ionicons } from '@expo/vector-icons';
 import ScrollingText from './ScrollingText';
+// import { AudioVisualizer } from 'react-audio-visualize';
 // import * as MediaLibrary from 'expo-media-library';
+
 // import { Platform } from 'react-native';
 
 import { initiateFastDownload } from './InitiateFastDownload';
-import WaveformViewer from './waveformViewer';
+// import WaveformViewer from './waveformViewer';
+// import { IWaveformRef, Waveform } from '@simform_solutions/react-native-audio-waveform';
 
 export interface MusicFile {
   id: string;
@@ -31,6 +35,7 @@ export interface MusicFile {
   isFavorite: boolean;
   author?: string;
   filepath?: string;
+  thumbnail?:string;
 }
 
 interface AudioFile {
@@ -47,17 +52,60 @@ const FAVORITES_KEY = 'favorite-music-files';
 export default function GlobalList() {
   const dispatch = useDispatch();
   const currentTrack = useSelector((state: RootState) => state.musicPlayer.currentTrack);
+  const theme = useSelector((state: RootState) => state.musicPlayer.theme);
   const convAPI = useSelector((state: RootState) => state.musicPlayer.converterAPI);
   const [musicFiles, setMusicFiles] = useState<MusicFile[]>([]);
   const [favoriteFiles, setFavoriteFiles] = useState<Set<string>>(new Set());
+  const [currentTrackURI,setCurrentTrackURI] = useState<string|null>(null)
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState<{ [key: string]: boolean }>({}); // Add state for download status
+  const visualizerRef = useRef<HTMLCanvasElement>(null)
 //   const requestStoragePermission = async () => {
 //     const { status } = await MediaLibrary.requestPermissionsAsync();
 //     return status === 'granted';
 //   };
   const AUDIO_BASE_URL = convAPI || 'https://fifth-funky-caps-dev.trycloudflare.com';
+  const getThemeColors = () => {
+    console.log("♾️♾️♾️ Theme: ", theme);
+    if (!theme || theme === 'dark') {
+      return {
+        textColor: "#1a1a2e",
+        particleColor: "#000000",
+        gradientPrimary: "#4e3794",
+        underlineColor: "#1a1a2e",
+        backgroundColor: "#f5f5f5",
+        titleColor: "#333333",
+        timeTextColor: "#666666",
+        sliderThumbColor: "#6200ee",
+        sliderTrackColor: "#d3d3d3",
+        sliderProgressColor: "#6200ee",
+        buttonColor: "#6200ee",
+        buttonTextColor: "white",
+        disabledButtonColor: "#cccccc",
+      };
+    } else {
+      return {
+        textColor: "#ffffff",
+        particleColor: "#ffffff",
+        gradientPrimary: "#ffffff",
+        underlineColor: "#e0e0e0",
+        backgroundColor: "#121212",
+        titleColor: "#e0e0e0",
+        timeTextColor: "#b3b3b3",
+        sliderThumbColor: "#6200ee",
+        sliderTrackColor: "#4f4f4f",
+        sliderProgressColor: "#6200ee",
+        buttonColor: "#6200ee",
+        buttonTextColor: "white",
+        disabledButtonColor: "#333333",
+      };
+    }
+  };
 
+  const colors = getThemeColors();
+  
+// const path = ''; // path to the audio file for which you want to show waveform
+// const ref = useRef<IWaveformRef>(null);
   // Initialize music directory
   useEffect(() => {
     const initMusicDir = async () => {
@@ -214,7 +262,92 @@ export default function GlobalList() {
 //       setIsDownloading((prev) => ({ ...prev, [video._id]: false }));
 //     }
 //   };
-
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    // backgroundColor: '#f5f5f5',
+    height: '50%',
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 100,
+    paddingTop: 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666666',
+  },
+  addButton: {
+    backgroundColor: colors.buttonColor,
+    padding: 15,
+    width: '70%',
+    margin: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  refreshButton: {
+    backgroundColor: colors.buttonColor,
+    padding: 15,
+    width: '15%',
+    margin: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  fileItem: {
+    flexDirection: 'row',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    backgroundColor: colors.backgroundColor,
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  selectedFileItem: {
+    backgroundColor: colors.backgroundColor,
+    borderRadius: 20,
+  },
+  fileInfo: {
+    flex: 1,
+    marginRight: 10,
+  },
+  fileName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.textColor,
+  },
+  fileArtist: {
+    fontSize: 14,
+    color: colors.textColor,
+    marginTop: 4,
+  },
+  fileActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  actionButtonText: {
+    fontSize: 18,
+    color: colors.textColor,
+  },
+});
   // Fetch tracks from API
   const fetchTracks = async () => {
     try {
@@ -373,11 +506,13 @@ export default function GlobalList() {
 
     console.log("TRACK CURRENT: ",file)
     let fillURI={};
+    const uri =`${convAPI || AUDIO_BASE_URL}${file.uri}`;
     if(file.uri.startsWith("null")){
       fillURI={
         ...file,
         uri:`${convAPI || AUDIO_BASE_URL}${file.uri}`
       }
+      setCurrentTrackURI(uri)
     }
     if(!isLoading){
       dispatch(setCurrentTrack(file));
@@ -417,6 +552,8 @@ export default function GlobalList() {
         onPress={() => handleFileSelect(item)}
       >
         <View style={styles.fileInfo}>
+
+          <Image source={{ uri: item?.thumbnail }} />
           <Text style={styles.fileName} numberOfLines={1}>
             {item.title}
           </Text>
@@ -424,6 +561,30 @@ export default function GlobalList() {
             {item.artist}
           </Text>
         </View>
+   
+
+        {/* <AudioVisualizer
+          ref={visualizerRef}
+          blob={}
+          width={500}
+          height={75}
+          barWidth={1}
+          gap={0}
+          barColor={'#f76565'}
+        /> */}
+        <Text>
+        {/* <Waveform
+          mode="static"
+          ref={ref}
+          path={currentTrackURI || ""}
+          candleSpace={2}
+          candleWidth={4}
+          scrubColor="#fefefe"
+          onPlayerStateChange={playerState => console.log(playerState)}
+          onPanStateChange={isMoving => console.log(isMoving)}
+        />; */}
+
+        </Text>
       {/* <WaveformViewer url={`${item.filepath}` || ""}/> */}
         <View style={styles.fileActions}>
           <TouchableOpacity
@@ -509,88 +670,3 @@ export default function GlobalList() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    // backgroundColor: '#f5f5f5',
-    height: '50%',
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 100,
-    paddingTop: 0,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666666',
-  },
-  addButton: {
-    backgroundColor: '#6200ee',
-    padding: 15,
-    width: '70%',
-    margin: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  refreshButton: {
-    backgroundColor: '#6200ee',
-    padding: 15,
-    width: '15%',
-    margin: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  fileItem: {
-    flexDirection: 'row',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    backgroundColor: 'white',
-    alignItems: 'center',
-    borderRadius: 20,
-  },
-  selectedFileItem: {
-    backgroundColor: '#ede7f6',
-    borderRadius: 20,
-  },
-  fileInfo: {
-    flex: 1,
-    marginRight: 10,
-  },
-  fileName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333333',
-  },
-  fileArtist: {
-    fontSize: 14,
-    color: '#666666',
-    marginTop: 4,
-  },
-  fileActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  actionButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  actionButtonText: {
-    fontSize: 18,
-  },
-});

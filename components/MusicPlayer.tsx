@@ -64,6 +64,47 @@ export default function MusicPlayer() {
   const soundRef = useRef<Audio.Sound | null>(null);
   const positionUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef<boolean>(true);
+  const theme = useSelector((state: RootState) => state.musicPlayer.theme);
+
+  const getThemeColors = () => {
+    console.log("♾️♾️♾️ Theme: ", theme);
+    if (!theme || theme === 'dark') {
+      return {
+        textColor: "#1a1a2e",
+        particleColor: "#000000",
+        gradientPrimary: "#4e3794",
+        underlineColor: "#1a1a2e",
+        backgroundColor: "#f5f5f5",
+        titleColor: "#333333",
+        timeTextColor: "#666666",
+        sliderThumbColor: "#6200ee",
+        sliderTrackColor: "#d3d3d3",
+        sliderProgressColor: "#6200ee",
+        buttonColor: "#6200ee",
+        buttonTextColor: "white",
+        disabledButtonColor: "#cccccc"
+      }
+    } else {
+      // Dark theme colors
+      return {
+        textColor: "#ffffff",
+        particleColor: "#ffffff",
+        gradientPrimary: "#ffffff",
+        underlineColor: "#e0e0e0",
+        backgroundColor: "#121212",
+        titleColor: "#e0e0e0",
+        timeTextColor: "#b3b3b3",
+        sliderThumbColor: "#6200ee",
+        sliderTrackColor: "#4f4f4f",
+        sliderProgressColor: "#6200ee",
+        buttonColor: "#6200ee",
+        buttonTextColor: "white",
+        disabledButtonColor: "#333333"
+      }
+    }
+  }
+
+  const colors = getThemeColors();
 
   // Animation shared values
   const playButtonScale = useSharedValue(1);
@@ -91,9 +132,9 @@ export default function MusicPlayer() {
   const sliderStyle = useAnimatedStyle(() => ({
     width: `${(sliderProgress.value / (duration || 1)) * 100}%`,
     height: 4,
-    backgroundColor: `#6200ee`,
+    backgroundColor: colors.sliderProgressColor,
     position: 'absolute',
-    borderRadius:3,
+    borderRadius: 3,
     left: 0,
     top: 0,
   }));
@@ -130,23 +171,23 @@ export default function MusicPlayer() {
     if (currentTrack) {
       titleOpacity.value = 0;
       titleOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.exp) });
-      console.log("URI DEFORE LOAD: ",currentTrack.uri)
-      let soundURI=currentTrack.uri;
-      if(currentTrack.uri.startsWith("null")){
+      console.log("URI DEFORE LOAD: ", currentTrack.uri);
+      let soundURI = currentTrack.uri;
+      if (currentTrack.uri.startsWith("null")) {
         const filepath = currentTrack.uri.split("/")[2];
-        console.log("CONVAPI AT MUSICPLAYER: ",convAPI)
-        soundURI = `${convAPI}/files/${filepath}`
+        console.log("CONVAPI AT MUSICPLAYER: ", convAPI);
+        soundURI = `${convAPI}/files/${filepath}`;
       }
-      console.log("SOUDURI TO BE LOADED: ",soundURI)
-      if(!soundURI.startsWith("null") && !isLoading){
+      console.log("SOUDURI TO BE LOADED: ", soundURI);
+      if (!soundURI.startsWith("null") && !isLoading) {
         loadSound(soundURI);
       }
     }
     return () => {
-      if (soundRef.current ) {
+      if (soundRef.current) {
         soundRef.current.unloadAsync();
       }
-      if (soundRef.current && currentTrack?.uri.startsWith("null") ) {
+      if (soundRef.current && currentTrack?.uri.startsWith("null")) {
         soundRef.current.unloadAsync();
       }
     };
@@ -325,7 +366,7 @@ export default function MusicPlayer() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.backgroundColor }]}>
       {isLoaded && (
         <View>
           <Animated.Text
@@ -333,7 +374,7 @@ export default function MusicPlayer() {
               {
                 fontSize: 13,
                 fontWeight: '400',
-                color: '#333333',
+                color: colors.titleColor,
                 padding: 6,
               },
               titleStyle,
@@ -344,7 +385,9 @@ export default function MusicPlayer() {
             {isLoading ? 'Loading audio...' : currentTrack!.title}
           </Animated.Text>
           <View style={styles.sliderContainer}>
-            <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+            <Text style={[styles.timeText, { color: colors.timeTextColor }]}>
+              {formatTime(currentTime)}
+            </Text>
             <View style={styles.sliderWrapper}>
               <Animated.View style={sliderStyle} />
               <Slider
@@ -353,51 +396,69 @@ export default function MusicPlayer() {
                 maximumValue={duration || 1}
                 value={sliderValue}
                 minimumTrackTintColor="transparent"
-                maximumTrackTintColor="#d3d3d3"
-                thumbTintColor="#6200ee"
+                maximumTrackTintColor={colors.sliderTrackColor}
+                thumbTintColor={colors.sliderThumbColor}
                 onValueChange={handleSliderValueChange}
                 onSlidingComplete={handleSliderSlidingComplete}
                 disabled={isLoading}
               />
             </View>
-            <Text style={styles.timeText}>{formatTime(duration)}</Text>
+            <Text style={[styles.timeText, { color: colors.timeTextColor }]}>
+              {formatTime(duration)}
+            </Text>
           </View>
         </View>
       )}
       <View style={styles.controlsContainer}>
         <TouchableOpacity
-          style={[styles.controlButton, (!isPlaying || isLoading) && styles.disabledButton]}
+          style={[
+            styles.controlButton, 
+            { backgroundColor: colors.buttonColor },
+            (!isPlaying || isLoading) && [styles.disabledButton, { backgroundColor: colors.disabledButtonColor }]
+          ]}
           onPress={playPreviousTrack}
           disabled={!isPlaying || isLoading}
         >
           <Animated.View style={pauseButtonStyle}>
-            <Ionicons name="play-skip-back" size={20} color="white" />
+            <Ionicons name="play-skip-back" size={20} color={colors.buttonTextColor} />
           </Animated.View>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.controlButton, (!currentTrack || isLoading) && styles.disabledButton]}
+          style={[
+            styles.controlButton, 
+            { backgroundColor: colors.buttonColor },
+            (!currentTrack || isLoading) && [styles.disabledButton, { backgroundColor: colors.disabledButtonColor }]
+          ]}
           onPress={isPlaying ? pauseSound : playSound}
           disabled={!currentTrack || isLoading}
         >
           <Animated.View style={isPlaying ? pauseButtonStyle : playButtonStyle}>
-            <Ionicons name={isPlaying ? "pause" : "play"} size={20} color="white" />
+            <Ionicons name={isPlaying ? "pause" : "play"} size={20} color={colors.buttonTextColor} />
           </Animated.View>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.controlButton, (!isPlaying || isLoading) && styles.disabledButton]}
+          style={[
+            styles.controlButton, 
+            { backgroundColor: colors.buttonColor },
+            (!isPlaying || isLoading) && [styles.disabledButton, { backgroundColor: colors.disabledButtonColor }]
+          ]}
           onPress={playNextTrack}
           disabled={!isPlaying || isLoading}
         >
           <Animated.View style={pauseButtonStyle}>
-            <Ionicons name="play-skip-forward" size={20} color="white" />
+            <Ionicons name="play-skip-forward" size={20} color={colors.buttonTextColor} />
           </Animated.View>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.controlButton, (!isLoaded || isLoading) && styles.disabledButton]}
+          style={[
+            styles.controlButton, 
+            { backgroundColor: colors.buttonColor },
+            (!isLoaded || isLoading) && [styles.disabledButton, { backgroundColor: colors.disabledButtonColor }]
+          ]}
           onPress={stopSound}
           disabled={!isLoaded || isLoading}
         >
-          <Ionicons name="stop" size={20} color="white" />
+          <Ionicons name="stop" size={20} color={colors.buttonTextColor} />
         </TouchableOpacity>
       </View>
     </View>
@@ -409,7 +470,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     paddingTop: 0,
-    backgroundColor: '#f5f5f5',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -431,7 +491,6 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 12,
-    color: '#666666',
     width: 40,
     textAlign: 'center',
   },
@@ -442,7 +501,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   controlButton: {
-    backgroundColor: '#6200ee',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
@@ -450,7 +508,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: '#cccccc',
     opacity: 0.7,
   },
 });

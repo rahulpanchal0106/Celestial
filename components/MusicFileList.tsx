@@ -19,6 +19,103 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
   const [musicFiles, setMusicFiles] = useState<AudioFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const theme = useSelector((state:RootState)=>state.musicPlayer.theme)
+  const getThemeColors = () => {
+      console.log("♾️♾️♾️ Theme: ", theme);
+      if (!theme || theme === 'dark') {
+        return {
+          textColor: "#1a1a2e",
+          particleColor: "#000000",
+          gradientPrimary: "#4e3794",
+          underlineColor: "#1a1a2e",
+          backgroundColor: "#f5f5f5",
+          titleColor: "#333333",
+          timeTextColor: "#666666",
+          sliderThumbColor: "#6200ee",
+          sliderTrackColor: "#d3d3d3",
+          sliderProgressColor: "#6200ee",
+          buttonColor: "#6200ee",
+          buttonTextColor: "white",
+          disabledButtonColor: "#cccccc",
+          borderColor:"lightGray"
+        };
+      } else {
+        return {
+          textColor: "#ffffff",
+          particleColor: "#ffffff",
+          gradientPrimary: "#ffffff",
+          underlineColor: "#e0e0e0",
+          backgroundColor: "#121212",
+          titleColor: "#e0e0e0",
+          timeTextColor: "#b3b3b3",
+          sliderThumbColor: "#6200ee",
+          sliderTrackColor: "#4f4f4f",
+          sliderProgressColor: "#6200ee",
+          buttonColor: "#6200ee",
+          buttonTextColor: "white",
+          disabledButtonColor: "#333333",
+          borderColor:"#333"
+        };
+      }
+    };
+  
+    const colors = getThemeColors();
+    const styles = StyleSheet.create({
+      container: {
+        flex: 1,
+        // backgroundColor: '#fff',
+      },
+      listContent: {
+        padding: 16,
+        paddingBottom: 100,
+      },
+      fileItem: {
+        flexDirection: 'row',
+        padding: 12,
+        borderWidth: 1,
+        // borderColor: '#f0f0f0',
+        borderColor: colors.borderColor,
+        backgroundColor:colors.backgroundColor,
+        borderRadius:10,
+        marginBottom:7,
+        alignItems: 'center',
+      },
+      thumbnail: {
+        width: 50,
+        height: 50,
+        borderRadius: 5,
+        marginRight: 12,
+      },
+      icon: {
+        marginRight: 12,
+      },
+      fileInfo: {
+        flex: 1,
+      },
+      fileName: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: colors.textColor,
+      },
+      fileSource: {
+        fontSize: 12,
+        color: colors.textColor,
+        marginTop: 4,
+      },
+      errorText: {
+        fontSize: 14,
+        color: '#d32f2f',
+        textAlign: 'center',
+        marginVertical: 12,
+      },
+      emptyText: {
+        fontSize: 14,
+        color: colors.textColor,
+        textAlign: 'center',
+        marginVertical: 12,
+      },
+    });
+    
 
   // Request media library permissions and load music files
   useEffect(() => {
@@ -159,60 +256,5 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    // backgroundColor: '#fff',
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  fileItem: {
-    flexDirection: 'row',
-    padding: 12,
-    borderWidth: 1,
-    // borderColor: '#f0f0f0',
-    borderColor: 'lightgray',
-    backgroundColor:'#f0f0f0',
-    borderRadius:10,
-    marginBottom:7,
-    alignItems: 'center',
-  },
-  thumbnail: {
-    width: 50,
-    height: 50,
-    borderRadius: 5,
-    marginRight: 12,
-  },
-  icon: {
-    marginRight: 12,
-  },
-  fileInfo: {
-    flex: 1,
-  },
-  fileName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  fileSource: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 4,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#d32f2f',
-    textAlign: 'center',
-    marginVertical: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    marginVertical: 12,
-  },
-});
 
 export default MusicFileList;

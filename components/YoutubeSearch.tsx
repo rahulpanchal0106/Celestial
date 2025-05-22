@@ -79,6 +79,46 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
   const [error, setError] = useState<string | null>(null);
   const AUDIO_BASE_URL = useSelector((state: RootState) => state.musicPlayer.converterAPI) || 'https://fifth-funky-caps-dev.trycloudflare.com';
   const API_BASE_URL = 'https://broke-beats.vercel.app';
+  const theme = useSelector((state: RootState) => state.musicPlayer.theme);
+
+  const getThemeColors = () => {
+    console.log("♾️♾️♾️ Theme: ", theme);
+    if (!theme || theme === 'dark') {
+      return {
+        textColor: "#1a1a2e",
+        particleColor: "#000000",
+        gradientPrimary: "#4e3794",
+        underlineColor: "#1a1a2e",
+        backgroundColor: "#f5f5f5",
+        titleColor: "#333333",
+        timeTextColor: "#666666",
+        sliderThumbColor: "#6200ee",
+        sliderTrackColor: "#d3d3d3",
+        sliderProgressColor: "#6200ee",
+        buttonColor: "#6200ee",
+        buttonTextColor: "white",
+        disabledButtonColor: "#cccccc",
+      };
+    } else {
+      return {
+        textColor: "#ffffff",
+        particleColor: "#ffffff",
+        gradientPrimary: "#ffffff",
+        underlineColor: "#e0e0e0",
+        backgroundColor: "#121212",
+        titleColor: "#e0e0e0",
+        timeTextColor: "#b3b3b3",
+        sliderThumbColor: "#6200ee",
+        sliderTrackColor: "#4f4f4f",
+        sliderProgressColor: "#6200ee",
+        buttonColor: "#6200ee",
+        buttonTextColor: "white",
+        disabledButtonColor: "#333333",
+      };
+    }
+  };
+
+  const colors = getThemeColors();
 
   const searchYouTube = async () => {
     if (!query.trim()) {
@@ -158,21 +198,18 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       if (!response.ok) {
         throw new Error(data.error || `Download failed: ${response.status}`);
       }
-      console.log("DATA: ",data)
+      console.log("DATA: ", data);
       if (data.status === 'processing') {
         Alert.alert('Info', `Track "${video.title}" is being processed. Please try again later.`);
         return;
       }
-      // if (!data.url || !data.filename) {
-      //   throw new Error(data.message || 'Invalid response from download API');
-      // }
 
       const track: AudioFile = {
         filepath: `${AUDIO_BASE_URL}${data.url}`,
         name: data.title || video.title,
         source: video.channel,
         thumbnail: video.thumbnail,
-        duration: video.duration
+        duration: video.duration,
       };
       onTrackAdd(track);
       Alert.alert('Success', `Track "${data.title || video.title}" added to global download queue`);
@@ -182,7 +219,7 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
         'Error',
         err.message.includes('already')
           ? 'This track is already being processed. Please wait.'
-          :`Download Failed: ${err.message}`
+          : `Download Failed: ${err.message}`
       );
     } finally {
       setIsDownloading(prev => ({ ...prev, [video.id]: false }));
@@ -195,7 +232,6 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
     let tempFilePath = '';
 
     try {
-      // Validate inputs
       if (!video.filepath) {
         throw new Error('Invalid filepath: filepath is missing or undefined');
       }
@@ -203,14 +239,12 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
         throw new Error('AUDIO_BASE_URL is not set');
       }
 
-      // Request and verify permissions
       const permissionGranted = await requestStoragePermission();
       const storageDir = permissionGranted ? FileSystem.documentDirectory : FileSystem.cacheDirectory;
       if (!storageDir) {
         throw new Error('Storage directory is not available');
       }
 
-      // Construct download URL and file paths
       const downloadURI = `${AUDIO_BASE_URL.replace(/\/$/, '')}/${video.filepath.replace(/^\//, '')}`;
       const safeTitle = video.title.replace(/[^a-zA-Z0-9]/g, '_');
       tempFilePath = `${FileSystem.cacheDirectory}${safeTitle}_${video._id}_${Date.now()}.mp3`;
@@ -218,19 +252,16 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       const filename = video.title ? `${video.title}.mp3` : `track_${video._id}.mp3`;
 
       console.log('Downloading from:', downloadURI);
-      // Download file to temporary location
       const response = await FileSystem.downloadAsync(downloadURI, tempFilePath);
       if (response.status !== 200) {
         throw new Error(`Download failed with status: ${response.status}`);
       }
 
-      // Verify downloaded file
       const fileInfo = await FileSystem.getInfoAsync(tempFilePath);
       if (!fileInfo.exists || (fileInfo.size && fileInfo.size === 0)) {
         throw new Error('Downloaded file not found or is empty');
       }
 
-      // Save thumbnail if available
       let thumbnailPath: string | undefined;
       if (video.thumbnail) {
         console.log('Downloading thumbnail:', video.thumbnail);
@@ -253,14 +284,12 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
 
       if (permissionGranted) {
         console.log('Saving to media library...');
-        // Re-check permissions before media library operations
         const { status } = await MediaLibrary.getPermissionsAsync();
         if (status !== 'granted') {
           console.warn('Media library permission lost');
           throw new Error('Media library permission denied');
         }
 
-        // Save to media library
         let asset;
         try {
           asset = await MediaLibrary.createAssetAsync(tempFilePath);
@@ -297,7 +326,6 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
           console.warn('No localUri in assetInfo');
         }
 
-        // Delete temporary file
         try {
           await FileSystem.deleteAsync(tempFilePath, { idempotent: true });
         } catch (deleteErr) {
@@ -305,7 +333,6 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
         }
       } else {
         console.log('Saving to document directory...');
-        // Save to document directory for semi-persistence
         const docFilePath = `${FileSystem.documentDirectory}${safeTitle}_${video._id}.mp3`;
         try {
           await FileSystem.copyAsync({ from: tempFilePath, to: docFilePath });
@@ -322,7 +349,6 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
         }
       }
 
-      // Save metadata to AsyncStorage
       console.log('Saving metadata to AsyncStorage...');
       const metadata = {
         id: video._id,
@@ -339,7 +365,6 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
         throw new Error('Failed to save track metadata');
       }
 
-      // Create track object
       const track: AudioFile = {
         filepath: finalPath.startsWith('file://') ? finalPath : `file://${finalPath}`,
         name: filename,
@@ -357,7 +382,6 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       );
     } catch (err: any) {
       console.error('Fast download error:', err);
-      // Clean up temporary file if it exists
       if (tempFilePath) {
         try {
           await FileSystem.deleteAsync(tempFilePath, { idempotent: true });
@@ -377,45 +401,174 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
     }
   };
 
-  const renderVideoItem = ({ item, i }: { item: YouTubeVideo, i:number }) => (
+  const renderVideoItem = ({ item, i }: { item: YouTubeVideo, i: number }) => (
     <TouchableOpacity
-    key={i}
+      key={i}
       style={[styles.videoItem, isDownloading[item.id] && styles.disabledItem]}
       onPress={() => initiateDownload(item)}
       disabled={isDownloading[item.id]}
     >
       <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
       <View style={styles.videoInfo}>
-        <Text style={styles.videoTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.videoChannel}>{item.channel}</Text>
-        <Text style={styles.videoChannel}>{item.duration}</Text>
+        <Text style={[styles.videoTitle, { color: colors.titleColor }]} numberOfLines={2}>{item.title}</Text>
+        <Text style={[styles.videoChannel, { color: colors.timeTextColor }]}>{item.channel}</Text>
+        <Text style={[styles.videoChannel, { color: colors.timeTextColor }]}>{item.duration}</Text>
       </View>
-      {isDownloading[item.id] && <ActivityIndicator size="small" color="#6200ee" style={styles.loader} />}
+      {isDownloading[item.id] && <ActivityIndicator size="small" color={colors.sliderThumbColor} style={styles.loader} />}
     </TouchableOpacity>
   );
 
-  const renderFastTrack = ({ item, i }: { item: MusicFile, i:number }) => (
+  const renderFastTrack = ({ item, i }: { item: MusicFile, i: number }) => (
     <TouchableOpacity
-    key={i}
+      key={i}
       style={[styles.videoItem, isDownloading[item._id] && styles.disabledItem]}
       onPress={() => initiateFastDownload(item)}
       disabled={isDownloading[item._id]}
     >
       {item.thumbnail && <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />}
-      {!item.thumbnail && <Ionicons name='flash-outline' size={30} style={styles.fastThumbnail}/>}
+      {!item.thumbnail && <Ionicons name='flash-outline' size={30} color={colors.particleColor} style={styles.fastThumbnail} />}
       <View style={styles.videoInfo}>
-        <Text style={styles.videoTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.videoChannel}>{item.artist || item.author || 'Unknown Artist'}</Text>
+        <Text style={[styles.videoTitle, { color: colors.titleColor }]} numberOfLines={2}>{item.title}</Text>
+        <Text style={[styles.videoChannel, { color: colors.timeTextColor }]}>{item.artist || item.author || 'Unknown Artist'}</Text>
       </View>
-      {isDownloading[item._id] && <ActivityIndicator size="small" color="#6200ee" style={styles.loader} />}
+      {isDownloading[item._id] && <ActivityIndicator size="small" color={colors.sliderThumbColor} style={styles.loader} />}
     </TouchableOpacity>
   );
+
+  const styles = StyleSheet.create({
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.titleColor,
+      padding: 12,
+    },
+    container: {
+      width: '100%',
+      backgroundColor: colors.backgroundColor,
+      borderRadius: 8,
+      padding: 17,
+      paddingBottom: 0,
+      paddingTop: 0,
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    inputContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderColor: colors.underlineColor,
+      borderWidth: 1,
+      borderRadius: 20,
+      backgroundColor: colors.backgroundColor,
+      marginRight: 8,
+    },
+    searchIcon: {
+      marginLeft: 12,
+      marginRight: 8,
+      color: colors.timeTextColor,
+    },
+    input: {
+      flex: 1,
+      height: 40,
+      fontSize: 14,
+      color: colors.textColor,
+    },
+    searchButton: {
+      backgroundColor: colors.buttonColor,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    searchButtonText: {
+      color: colors.buttonTextColor,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    disabledButton: {
+      backgroundColor: colors.disabledButtonColor,
+      opacity: 0.7,
+    },
+    videoList: {
+      width: '100%',
+    },
+    fastDownloadList: {
+      width: '100%',
+    },
+    videoItem: {
+      flexDirection: 'row',
+      padding: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.underlineColor,
+      alignItems: 'center',
+    },
+    disabledItem: {
+      opacity: 0.7,
+    },
+    thumbnail: {
+      width: 80,
+      height: 60,
+      borderRadius: 5,
+      marginRight: 12,
+    },
+    fastThumbnail: {
+      width: 40,
+      height: 50,
+      borderRadius: 5,
+      marginRight: 5,
+      marginLeft: 0,
+    },
+    emptyPage: {
+      width: 400,
+      height: 200,
+      borderRadius: 5,
+      marginRight: 5,
+      marginLeft: 0,
+      color: colors.particleColor,
+    },
+    videoInfo: {
+      flex: 1,
+    },
+    videoTitle: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.titleColor,
+    },
+    videoChannel: {
+      fontSize: 12,
+      color: colors.timeTextColor,
+      marginTop: 4,
+    },
+    loader: {
+      marginLeft: 8,
+    },
+    errorText: {
+      fontSize: 14,
+      color: '#d32f2f', // Keeping as is since no equivalent in theme colors
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    emptyText: {
+      fontSize: 14,
+      color: colors.timeTextColor,
+      textAlign: 'center',
+      marginTop: 12,
+      marginBottom: 12,
+      height: "100%",
+      display: "flex",
+      justifyContent: "center",
+      alignContent: "center",
+    },
+  });
 
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
         <View style={styles.inputContainer}>
-          <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
+          <Ionicons name="search" size={20} style={styles.searchIcon} />
           <TextInput
             style={styles.input}
             placeholder="Enter song or artist name"
@@ -433,200 +586,36 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
           <Text style={styles.searchButtonText}>
             {isSearching ? 'Searching...' : 'Search'}
           </Text>
-          {isSearching && <ActivityIndicator size="small" color="#fff" style={styles.loader} />}
+          {isSearching && <ActivityIndicator size="small" color={colors.buttonTextColor} style={styles.loader} />}
         </TouchableOpacity>
       </View>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
-      <ScrollView style={{
-        height:"100%"
-      }}>
-       <Text>
-        {isSearching ? 'Searching in Database...' : 
-        fastTracks.length === 0 && query ? 
-        "No matching tracks found on database" :
-        fastTracks.map((item,i)=>renderFastTrack({item,i}))
-        }
+      <ScrollView style={{ height: "100%" }}>
+        <Text>
+          {isSearching ? 'Searching in Database...' :
+            fastTracks.length === 0 && query ?
+              "No matching tracks found on database" :
+              fastTracks.map((item, i) => renderFastTrack({ item, i }))
+          }
         </Text>
-       
-       <Text>
-        {isSearching ? 'Searching in Youtube...' : 
-        videos.length === 0 && query ? 
-        "No tracks found on Youtube" :
-       videos.map((item,i)=>renderVideoItem({item,i}))
-        }
+        <Text>
+          {isSearching ? 'Searching in Youtube...' :
+            videos.length === 0 && query ?
+              "No tracks found on Youtube" :
+              videos.map((item, i) => renderVideoItem({ item, i }))
+          }
         </Text>
-        
-
-      {/* <FlatList
-        data={fastTracks}
-        renderItem={renderFastTrack}
-        keyExtractor={item => item._id}
-        style={styles.fastDownloadList}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            {isSearching ? 'Searching in Database...' : fastTracks.length === 0 && query ? 'No fast tracks found' : 'Search for a song'}
-          </Text>
-        }
-      />  */}
-      
-      {/* <Text style={styles.sectionTitle}>Add in the Global Library</Text>
-      <FlatList
-        data={videos}
-        renderItem={renderVideoItem}
-        keyExtractor={item => item.id}
-        style={styles.videoList}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            
-          </Text>
-        }
-      /> */}
-
       </ScrollView>
-      {
-        (!isSearching&&fastTracks.length==0 && videos.length==0) && (
-          <View style={{height:"90%", width:"100%" }}>
-            {/* <Ionicons name='logo-youtube' size={200} style={styles.emptyPage} /> */}
-            <Text style={{ width:"100%",height:"100%", textAlign:"center"}} >Search for any track in the world!</Text>
-          </View>
-        )
-      }
+      {(!isSearching && fastTracks.length === 0 && videos.length === 0) && (
+        <View style={{ height: "90%", width: "100%" }}>
+          <Text style={{ width: "100%", height: "100%", textAlign: "center", color: colors.textColor }}>
+            Search for any track in the world!
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#444444',
-    padding: 12,
-  },
-  container: {
-    width: '100%',
-    // backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 17,
-    paddingBottom: 0,
-    paddingTop: 0,
-    // marginBottom: "80%",
-    // borderColor: "#CCCCCC",
-    // borderWidth: 1
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    // marginBottom: 12,
-  },
-  inputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderColor: '#dddddd',
-    borderWidth: 1,
-    borderRadius: 20,
-    backgroundColor: '#f8f9fa',
-    marginRight: 8,
-  },
-  searchIcon: {
-    marginLeft: 12,
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    height: 40,
-    fontSize: 14,
-    color: '#333333',
-  },
-  searchButton: {
-    backgroundColor: '#6200ee',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  searchButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  disabledButton: {
-    backgroundColor: '#cccccc',
-    opacity: 0.7,
-  },
-  videoList: {
-    width: '100%',
-    // height: "40%",
-  },
-  fastDownloadList: {
-    width: '100%',
-    // height: "40%",
-  },
-  videoItem: {
-    flexDirection: 'row',
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    alignItems: 'center',
-  },
-  disabledItem: {
-    opacity: 0.7,
-  },
-  thumbnail: {
-    width: 80,
-    height: 60,
-    borderRadius: 5,
-    marginRight: 12,
-  },
-  fastThumbnail: {
-    width: 40,
-    height: 50,
-    borderRadius: 5,
-    marginRight: 5,
-    marginLeft: 0,
-  },
-  emptyPage: {
-    width: 400,
-    height: 200,
-    borderRadius: 5,
-    marginRight: 5,
-    marginLeft: 0,
-  },
-  videoInfo: {
-    flex: 1,
-  },
-  videoTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333333',
-  },
-  videoChannel: {
-    fontSize: 12,
-    color: '#888888',
-    marginTop: 4,
-  },
-  loader: {
-    marginLeft: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#d32f2f',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#999999',
-    textAlign: 'center',
-    marginTop: 12,
-    marginBottom: 12,
-    height: "100%",
-    display: "flex",
-    justifyContent: "center",
-    alignContent: "center"
-  },
-});
 
 export default YouTubeSearch;
