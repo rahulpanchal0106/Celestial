@@ -13,6 +13,7 @@ import Global from './screens/Global';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ArtistScreen from './screens/ArtistsScreen';
 import SettingsList from './components/SettingsList';
+import ArtGenerator from './components/ArtGenerator';
 
 const Tab = createBottomTabNavigator();
 
@@ -73,7 +74,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           >
             <Ionicons
               name={iconName}
-              size={24}
+              size={isFocused?30:24}
               color={isFocused ? '#6200ee' : '#888'}
             />
           </TouchableOpacity>
@@ -131,7 +132,7 @@ function AppContent() {
       };
     }
   };
-
+  const currentTrack = useSelector((state:RootState)=>state.musicPlayer.currentTrack);
   const colors = getThemeColors();
 
   return (
@@ -156,6 +157,8 @@ function AppContent() {
           </Tab.Navigator>
         </NavigationContainer>
         <View style={styles.musicPlayerContainer}>
+        {/* {currentTrack && currentTrack.filepath&& <ArtGenerator trackId={currentTrack.filepath as string} borderRadius={0} setAsBg={true}  />} */}
+      {/* {currentTrack && currentTrack.id&& <ArtGenerator trackId={currentTrack.id as string} borderRadius={0} setAsBg={true}  />} */}
           <MusicPlayer />
         </View>
       </View>

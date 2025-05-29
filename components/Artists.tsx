@@ -16,6 +16,9 @@ import { initiateFastDownload } from './InitiateFastDownload';
 import { MusicFile } from './GlobalList';
 import { RootState } from '../store/store';
 import { AudioFile } from './YoutubeSearch';
+import { Image, SvgUri } from 'react-native-svg';
+import ChannelAvatar from './channelAvatar';
+import ArtGenerator from './ArtGenerator';
 
 // Types
 type ArtistGroup = {
@@ -35,10 +38,12 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
   const convAPI = useSelector((state: RootState) => state.musicPlayer.converterAPI);
   const [musicFiles, setMusicFiles] = useState<MusicFile[]>([]);
   const [favoriteFiles, setFavoriteFiles] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
+  // const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState<{ [key: string]: boolean }>({});
   const [expandedArtists, setExpandedArtists] = useState<ExpandedArtistsState>({});
   const tracks = useSelector((state: RootState) => state.musicPlayer.playlist);
+  const isPlaying = useSelector((state: RootState) => state.musicPlayer.isPlaying);
+  const currentTrack = useSelector((state: RootState) => state.musicPlayer.currentTrack);
   const theme = useSelector((state: RootState) => state.musicPlayer.theme);
   const dispatch = useDispatch();
 
@@ -49,7 +54,7 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
         textColor: "#1a1a2e",
         particleColor: "#000000",
         gradientPrimary: "#4e3794",
-        underlineColor: "#1a1a2e",
+        underlineColor: "#795f6c38",
         backgroundColor: "#f5f5f5",
         titleColor: "#333333",
         timeTextColor: "#666666",
@@ -58,15 +63,15 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
         sliderProgressColor: "#6200ee",
         buttonColor: "#6200ee",
         buttonTextColor: "white",
-        disabledButtonColor: "#cccccc"
+        disabledButtonColor: "#cccccc",
+        currentTrackBG:"#d7cbf2"
       };
     } else {
-      // Assuming 'light' theme for any non-dark theme
       return {
         textColor: "#ffffff",
         particleColor: "#ffffff",
         gradientPrimary: "#ffffff",
-        underlineColor: "#e0e0e0",
+        underlineColor: "#795f6c38",
         backgroundColor: "#121212",
         titleColor: "#e0e0e0",
         timeTextColor: "#b3b3b3",
@@ -75,7 +80,8 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
         sliderProgressColor: "#6200ee",
         buttonColor: "#6200ee",
         buttonTextColor: "white",
-        disabledButtonColor: "#333333"
+        disabledButtonColor: "#333333",
+        currentTrackBG:"#302845"
       };
     }
   };
@@ -171,6 +177,20 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
     return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
+  async function getChannelIdFromHandle(handle: string): Promise<string | null> {
+    const url = `https://www.youtube.com/@${handle}`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0', // Pretend to be a browser
+      },
+    });
+  
+    const html = await response.text();
+    const match = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
+  
+    return match ? match[1] : null;
+  }
+
   // Track card component
   const TrackCard: React.FC<{ track: Track; i: number }> = ({ track, i }) => {
     const dispatch = useDispatch();
@@ -178,28 +198,33 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
     return (
       <TouchableOpacity
         key={i}
-        style={[styles.trackCard, { borderBottomColor: colors.underlineColor }]}
+        style={[styles.trackCard, { borderColor: colors.underlineColor, backgroundColor:(currentTrack?.id===track.id)?colors.currentTrackBG:"" }]}
         onPress={() => {
           dispatch(setCurrentTrack(track));
           dispatch(setArtistPlaylist(tracks.filter((tr: Track) => tr.artist === track.artist)));
         }}
         activeOpacity={0.7}
       >
-        <Text style={[styles.trackTitle, { color: colors.titleColor }]}>{track.title}</Text>
+          <ArtGenerator trackId={track.id as string} width={50} height={50} borderRadius={25} />
+      <ArtGenerator trackId={track.id as string} borderRadius={0} setAsBg={true} />
+      
+        <Text numberOfLines={2}
+            ellipsizeMode="tail" style={[styles.trackTitle, { color: colors.titleColor, marginLeft:7 }]}>{track.title}</Text>
         <Text style={[styles.trackLength, { color: colors.timeTextColor }]}>
           {formatLength(track.duration)}
         </Text>
+          <Ionicons name={isPlaying && (currentTrack?.id==track.id)?'pause':'play'} style={{marginLeft:10, color:(currentTrack?.id===track.id)?colors.titleColor:"#333333", fontSize:17}} />
         <View style={styles.fileActions}>
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.buttonColor }]}
+            style={[styles.actionButton]}
             onPress={() => toggleFavorite(track)}
             disabled={isDownloading[track.id]}
           >
             {isDownloading[track.id] ? (
-              <ActivityIndicator size="small" color={colors.buttonColor} />
+              <ActivityIndicator size="small"  />
             ) : (
-              <Text style={[styles.actionButtonText, { color: colors.buttonTextColor }]}>
-                <Ionicons name="add-circle-outline" size={23} color={colors.buttonTextColor} />
+              <Text style={[styles.actionButtonText,{color:colors.titleColor}]}>
+                <Ionicons name="add-circle-outline" size={23} />
               </Text>
             )}
           </TouchableOpacity>
@@ -211,6 +236,8 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
   // Artist item component
   const ArtistItem: React.FC<{ artist: ArtistGroup }> = ({ artist }) => {
     const isExpanded = !!expandedArtists[artist.author];
+    // const channelId =  await getChannelIdFromHandle(artist.author);
+    // console.log("CID: ",channelId)
     return (
       <View style={[styles.artistContainer]}>
         <TouchableOpacity
@@ -218,6 +245,14 @@ const ArtistsPage: React.FC<ArtistsPageProps> = () => {
           onPress={() => toggleArtist(artist.author)}
         >
           <Text style={[styles.artistName, { color: colors.titleColor }]}>
+          {/* <View>
+      <SvgUri
+        width={50}
+        height={50}
+        uri={`https://yt3.ggpht.com/ytc/${channelId}=s176-c-k-c0x00ffffff-no-rj`}      />
+    </View> */}
+    {/* <ChannelAvatar handle={artist.author} /> */}
+
             {artist.author} ({artist.tracks.length} track{artist.tracks.length !== 1 ? 's' : ''})
           </Text>
           <Text style={[styles.arrow, { color: colors.timeTextColor }]}>
@@ -287,10 +322,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   searchInput: {
-    borderWidth: 1,
-    padding: 10,
+    // borderWidth: 1,
+    padding: 15,
     marginBottom: 10,
-    borderRadius: 5,
+    borderRadius: 100,
   },
   artistContainer: {
     marginBottom: 10,
@@ -315,9 +350,21 @@ const styles = StyleSheet.create({
   },
   trackCard: {
     flexDirection: 'row',
+    alignItems:"center",
     justifyContent: 'space-between',
-    padding: 10,
-    borderBottomWidth: 1,
+    overflow:"hidden",
+    // borderWidth: 1,
+    marginBottom:10,
+    borderRadius:100,
+    padding: 15,
+
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+
+    // Android shadow
+    elevation: 5
   },
   trackTitle: {
     fontSize: 16,

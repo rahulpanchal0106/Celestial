@@ -444,7 +444,7 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
     },
     container: {
       width: '100%',
-      backgroundColor: colors.backgroundColor,
+      // backgroundColor: colors.backgroundColor,
       borderRadius: 8,
       padding: 17,
       paddingBottom: 0,
@@ -459,7 +459,7 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       flexDirection: 'row',
       alignItems: 'center',
       borderColor: colors.underlineColor,
-      borderWidth: 1,
+      borderWidth: 0,
       borderRadius: 20,
       backgroundColor: colors.backgroundColor,
       marginRight: 8,
@@ -473,7 +473,7 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       flex: 1,
       height: 40,
       fontSize: 14,
-      color: colors.textColor,
+      color: colors.buttonTextColor,
     },
     searchButton: {
       backgroundColor: colors.buttonColor,
@@ -570,9 +570,14 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
         <View style={styles.inputContainer}>
           <Ionicons name="search" size={20} style={styles.searchIcon} />
           <TextInput
-            style={styles.input}
             placeholder="Enter song or artist name"
             value={query}
+            style={[{ 
+              height:40,
+              borderColor: colors.underlineColor,
+              backgroundColor: colors.backgroundColor,
+              color: colors.textColor,
+            }]}    
             onChangeText={setQuery}
             onSubmitEditing={searchYouTube}
             editable={!isSearching}

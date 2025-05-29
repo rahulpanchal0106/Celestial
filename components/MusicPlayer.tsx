@@ -20,6 +20,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ArtGenerator from './ArtGenerator';
 
 // Background task definition (unchanged)
 const BACKGROUND_PLAYBACK_TASK = 'background-playback-task';
@@ -67,7 +68,7 @@ export default function MusicPlayer() {
   const theme = useSelector((state: RootState) => state.musicPlayer.theme);
 
   const getThemeColors = () => {
-    console.log("♾️♾️♾️ Theme: ", theme);
+    // console.log("♾️♾️♾️ Theme: ", theme);
     if (!theme || theme === 'dark') {
       return {
         textColor: "#1a1a2e",
@@ -366,9 +367,13 @@ export default function MusicPlayer() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.backgroundColor }]}>
+    <View style={[styles.container]}>
+
+      {/* {currentTrack && currentTrack.filepath&& <ArtGenerator trackId={currentTrack.filepath as string} borderRadius={0} setAsBg={true}  />} */}
+      
       {isLoaded && (
-        <View>
+        <View style={{overflow:"hidden", width:"93%", padding:15, borderTopRightRadius:40, borderTopLeftRadius:40, backgroundColor: colors.backgroundColor}}>
+          {currentTrack && currentTrack.id&& <ArtGenerator trackId={currentTrack.id as string} borderRadius={0} setAsBg={true}  />}
           <Animated.Text
             style={[
               {
@@ -382,14 +387,14 @@ export default function MusicPlayer() {
             ellipsizeMode="middle"
             numberOfLines={1}
           >
-            {isLoading ? 'Loading audio...' : currentTrack!.title}
+            {isLoading ? 'Loading audio...' : currentTrack!.title.replace(/_+/g, ' ')}
           </Animated.Text>
           <View style={styles.sliderContainer}>
             <Text style={[styles.timeText, { color: colors.timeTextColor }]}>
               {formatTime(currentTime)}
             </Text>
             <View style={styles.sliderWrapper}>
-              <Animated.View style={sliderStyle} />
+              {/* <Animated.View style={sliderStyle} /> */}
               <Slider
                 style={styles.slider}
                 minimumValue={0}
@@ -409,7 +414,7 @@ export default function MusicPlayer() {
           </View>
         </View>
       )}
-      <View style={styles.controlsContainer}>
+      <View style={[styles.controlsContainer, { backgroundColor: colors.backgroundColor }]}>
         <TouchableOpacity
           style={[
             styles.controlButton, 
@@ -468,10 +473,19 @@ export default function MusicPlayer() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    // padding: 20,
+    overflow:"hidden",
     paddingTop: 0,
     alignItems: 'center',
     justifyContent: 'center',
+
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+
+    // Android shadow
+    elevation: 5,
   },
   sliderContainer: {
     width: '100%',
@@ -498,7 +512,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    marginTop: 10,
+    marginTop: -1,
+    padding:20,
   },
   controlButton: {
     paddingVertical: 10,

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  TextInput,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,6 +24,7 @@ import ScrollingText from './ScrollingText';
 // import { Platform } from 'react-native';
 
 import { initiateFastDownload } from './InitiateFastDownload';
+import ArtGenerator from './ArtGenerator';
 // import WaveformViewer from './waveformViewer';
 // import { IWaveformRef, Waveform } from '@simform_solutions/react-native-audio-waveform';
 
@@ -55,16 +57,18 @@ export default function GlobalList() {
   const theme = useSelector((state: RootState) => state.musicPlayer.theme);
   const convAPI = useSelector((state: RootState) => state.musicPlayer.converterAPI);
   const [musicFiles, setMusicFiles] = useState<MusicFile[]>([]);
+  const [allMusicFiles, setAllMusicFiles] = useState<MusicFile[]>([]);
   const [favoriteFiles, setFavoriteFiles] = useState<Set<string>>(new Set());
   const [currentTrackURI,setCurrentTrackURI] = useState<string|null>(null)
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState<{ [key: string]: boolean }>({}); // Add state for download status
   const visualizerRef = useRef<HTMLCanvasElement>(null)
+  const [searchQuery, setSearchQuery] = useState('');
 //   const requestStoragePermission = async () => {
 //     const { status } = await MediaLibrary.requestPermissionsAsync();
 //     return status === 'granted';
 //   };
-  const AUDIO_BASE_URL = convAPI || 'https://fifth-funky-caps-dev.trycloudflare.com';
+  const AUDIO_BASE_URL = convAPI;
   const getThemeColors = () => {
     console.log("♾️♾️♾️ Theme: ", theme);
     if (!theme || theme === 'dark') {
@@ -81,7 +85,11 @@ export default function GlobalList() {
         sliderProgressColor: "#6200ee",
         buttonColor: "#6200ee",
         buttonTextColor: "white",
+        borderColor: "#00000000",
         disabledButtonColor: "#cccccc",
+        searchBackground: "#e0e0e0", // Added for search bar
+        searchTextColor: "#333333", // Added for search text
+        searchPlaceholderColor: "#666666", // Added for placeholder
       };
     } else {
       return {
@@ -96,8 +104,12 @@ export default function GlobalList() {
         sliderTrackColor: "#4f4f4f",
         sliderProgressColor: "#6200ee",
         buttonColor: "#6200ee",
+        borderColor: "#333",
         buttonTextColor: "white",
         disabledButtonColor: "#333333",
+        searchBackground: "#333333", // Added for search bar
+        searchTextColor: "#e0e0e0", // Added for search text
+        searchPlaceholderColor: "#b3b3b3", // Added for placeholder
       };
     }
   };
@@ -265,7 +277,6 @@ export default function GlobalList() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor: '#f5f5f5',
     height: '50%',
   },
   listContent: {
@@ -285,7 +296,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666666',
+    color: colors.textColor, // Updated to use theme color
   },
   addButton: {
     backgroundColor: colors.buttonColor,
@@ -300,22 +311,40 @@ const styles = StyleSheet.create({
     padding: 15,
     width: '15%',
     margin: 10,
-    borderRadius: 8,
+    borderRadius: 50,
     alignItems: 'center',
   },
   addButtonText: {
-    color: "white",
+    color: colors.buttonTextColor,
     fontSize: 16,
     fontWeight: 'bold',
   },
   fileItem: {
+    // flexDirection: 'row',
+    // padding: 15,
+    // borderBottomWidth: 1,
+    // borderBottomColor: '#e0e0e0',
+    // backgroundColor: colors.backgroundColor,
+    // alignItems: 'center',
+    // borderRadius: 20,
     flexDirection: 'row',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    overflow:"hidden",
+    padding: 12,
+    paddingRight:15,
+    // borderWidth: 1,
+    // borderColor: colors.borderColor,
     backgroundColor: colors.backgroundColor,
+    borderRadius:100 ,
+    marginBottom: 7,
     alignItems: 'center',
-    borderRadius: 20,
+    
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+
+    // Android shadow
+    elevation: 5,
   },
   selectedFileItem: {
     backgroundColor: colors.backgroundColor,
@@ -323,7 +352,7 @@ const styles = StyleSheet.create({
   },
   fileInfo: {
     flex: 1,
-    marginRight: 10,
+    marginLeft: 10,
   },
   fileName: {
     fontSize: 16,
@@ -347,8 +376,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: colors.textColor,
   },
-});
-  // Fetch tracks from API
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 10,
+    padding: 8,
+    backgroundColor: colors.searchBackground,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    flex: 1,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.searchTextColor,
+  },
+});  // Fetch tracks from API
   const fetchTracks = async () => {
     try {
       setIsLoading(true);
@@ -381,6 +428,7 @@ const styles = StyleSheet.create({
           .filter((track: MusicFile) => track.uri);
 
         setMusicFiles([...newTracks]);
+        setAllMusicFiles([...newTracks]);
         dispatch(setPlaylist([...newTracks]));
       } else {
         console.error('Invalid data format received:', data);
@@ -478,6 +526,8 @@ const styles = StyleSheet.create({
     console.log("🎵🎵🎵 FINisHED download")
   };
 
+
+
   // Delete file
   const deleteFile = async (fileId: string, uri: string) => {
     try {
@@ -541,6 +591,26 @@ const styles = StyleSheet.create({
     }
   };
 
+  const handleSearch=(text:string)=>{
+    setSearchQuery(text)
+  }
+  useEffect(()=>{
+    setIsLoading(true);
+    const filteredMusicFiles = musicFiles.filter((file) =>
+      file.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      file.artist.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    if(searchQuery==="" || !searchQuery){
+      // const filteredMusicFiles = musicFiles.filter((file) =>
+      //   true
+      // );
+      setMusicFiles(allMusicFiles )
+    }else{
+      setMusicFiles(filteredMusicFiles)
+    }
+    setIsLoading(false);
+  },[searchQuery])
+
   // Render file item
   const renderFileItem = ({ item,i }: { item: MusicFile, i:number }) => {
     const isSelected = currentTrack?.id === item.id;
@@ -551,17 +621,21 @@ const styles = StyleSheet.create({
         style={[styles.fileItem, isSelected && styles.selectedFileItem]}
         onPress={() => handleFileSelect(item)}
       >
-        <View style={styles.fileInfo}>
+        {/* <View style={styles.fileInfo}> */}
 
-          <Image source={{ uri: item?.thumbnail }} />
+          {/* <Image source={{ uri: item?.thumbnail }} /> */}
+          <ArtGenerator trackId={item.id} width={50} height={50}/>
+          {/* <ArtGenerator trackId={item.id} borderRadius={0} setAsBg={true} /> */}
+      <View style={styles.fileInfo}>
+
           <Text style={styles.fileName} numberOfLines={1}>
             {item.title}
           </Text>
           <Text style={styles.fileArtist} numberOfLines={1}>
             {item.artist}
           </Text>
-        </View>
-   
+        {/* </View> */}
+      </View>
 
         {/* <AudioVisualizer
           ref={visualizerRef}
@@ -572,7 +646,7 @@ const styles = StyleSheet.create({
           gap={0}
           barColor={'#f76565'}
         /> */}
-        <Text>
+        {/* <Text> */}
         {/* <Waveform
           mode="static"
           ref={ref}
@@ -584,9 +658,9 @@ const styles = StyleSheet.create({
           onPanStateChange={isMoving => console.log(isMoving)}
         />; */}
 
-        </Text>
+        {/* </Text> */}
       {/* <WaveformViewer url={`${item.filepath}` || ""}/> */}
-        <View style={styles.fileActions}>
+        {/* <View style={styles.fileActions}> */}
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => toggleFavorite(item)}
@@ -607,7 +681,7 @@ const styles = StyleSheet.create({
           >
             <Text style={styles.actionButtonText}>🗑️</Text>
           </TouchableOpacity> */}
-        </View>
+        {/* </View> */}
       </TouchableOpacity>
     );
   };
@@ -630,9 +704,16 @@ const styles = StyleSheet.create({
           alignContent: 'center',
         }}
       >
-        <TouchableOpacity style={styles.addButton} onPress={!isLoading &&pickAudioFile}>
-          <Text style={styles.addButtonText}>Add Music File</Text>
-        </TouchableOpacity>
+      <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color={colors.searchPlaceholderColor} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search tracks or artists..."
+            placeholderTextColor={colors.searchPlaceholderColor}
+            value={searchQuery}
+            onChangeText={handleSearch}
+          />
+        </View>
         <TouchableOpacity style={styles.refreshButton} onPress={async () => await handleRefresh()}>
           <Text style={styles.addButtonText}>
             <Ionicons name="reload" size={25} />

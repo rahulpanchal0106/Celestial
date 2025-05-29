@@ -7,6 +7,7 @@ export interface Track {
   uri: string;
   duration?: number;
   isFavorite?:boolean;
+  filepath?:string;
 }
 
 interface MusicPlayerState {

@@ -21,7 +21,7 @@ export const ThemeToggle = () => {
       disabledButton: '#666666',
     },
   };
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(true);
 const dispatch =useDispatch()
   const toggleTheme = () => {
     setIsDark((prev) => !prev);
