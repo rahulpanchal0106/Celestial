@@ -37,7 +37,7 @@ function noise(seed: string, x: number, y: number): number {
 }
 
 // Generate mood-based SVG shapes
-function generateShapes(seed: string, width: number, height: number, mood: Mood, numShapes: number = 10): JSX.Element[] {
+function generateShapes(seed: string, width: number, height: number, mood: Mood, setAsBg: boolean, numShapes: number = 8): JSX.Element[] {
   const rand = seededRandom(seed);
   const shapes: JSX.Element[] = [];
   const palette = MOOD_PALETTES[mood];
@@ -54,8 +54,8 @@ function generateShapes(seed: string, width: number, height: number, mood: Mood,
   const clusterX = settings.cluster ? rand() * width : width / 2;
   const clusterY = settings.cluster ? rand() * height : height / 2;
 
-  // Background pattern (dots for melancholic, waves for serene)
-  if (mood === 'melancholic') {
+  // Background pattern (dots for melancholic, waves for serene) - skip if it's a background
+  if (!setAsBg && mood === 'melancholic') {
     const dotSize = 3;
     const gridSpacing = 20;
     for (let x = 0; x < width; x += gridSpacing) {
@@ -74,7 +74,7 @@ function generateShapes(seed: string, width: number, height: number, mood: Mood,
         }
       }
     }
-  } else if (mood === 'serene') {
+  } else if (!setAsBg && mood === 'serene') {
     for (let i = 0; i < 3; i++) {
       const y = (i + 1) * (height / 4) + noise(seed, i, 0) * 20;
       const d = `M0,${y} Q${width / 4},${y + rand() * 40} ${width / 2},${y} T${width},${y}`;
@@ -91,8 +91,9 @@ function generateShapes(seed: string, width: number, height: number, mood: Mood,
     }
   }
 
-  // Main shapes
-  for (let i = 0; i < numShapes; i++) {
+  // Main shapes - reduce count for background
+  const shapeCount = setAsBg ? Math.floor(numShapes * 0.5) : numShapes;
+  for (let i = 0; i < shapeCount; i++) {
     const type = settings.shapeTypes[Math.floor(rand() * settings.shapeTypes.length)];
     const x = settings.cluster ? clusterX + noise(seed, i, 0) * width * 0.3 : rand() * width;
     const y = settings.cluster ? clusterY + noise(seed, 0, i) * height * 0.3 : rand() * height;
@@ -100,8 +101,8 @@ function generateShapes(seed: string, width: number, height: number, mood: Mood,
     const rotation = rand() * 360;
     const colorIndex = Math.floor(rand() * palette.length);
     const color = palette[colorIndex];
-    const useGradient = rand() < 0.7;
-    const opacity = settings.opacity[0] + rand() * (settings.opacity[1] - settings.opacity[0]);
+    const useGradient = rand() < 0.5; // Reduce gradient usage
+    const opacity = (setAsBg ? 0.7 : 1) * (settings.opacity[0] + rand() * (settings.opacity[1] - settings.opacity[0]));
 
     const shapeProps = {
       key: `shape-${i}`,
@@ -175,8 +176,8 @@ function generateShapes(seed: string, width: number, height: number, mood: Mood,
       );
     }
 
-    // Add shadow for intense/vibrant moods
-    if ((mood === 'intense' || mood === 'vibrant') && rand() < 0.3) {
+    // Add shadow for intense/vibrant moods - skip for background
+    if (!setAsBg && (mood === 'intense' || mood === 'vibrant') && rand() < 0.3) {
       shapes.push(
         <Defs key={`filter-${i}`}>
           <Filter id={`shadow${i}`}>
@@ -232,7 +233,7 @@ function TrackCoverArt({ trackId, width = 370, height = 100, borderRadius=50, se
           </LinearGradient>
         </Defs>
         <Rect x="0" y="0" width={width} height={height} fill="url(#bgGrad)" />
-        {generateShapes(trackId, width, height, mood)}
+        {generateShapes(trackId, width, height, mood, setAsBg)}
       </Svg>
     </View>
   );

@@ -42,6 +42,9 @@ const musicPlayerSlice = createSlice({
     setTheme: (state, action: PayloadAction<string>) => {
       state.theme = action.payload;
     },
+    togglePlayPause: (state) => {
+      state.isPlaying = !state.isPlaying;
+    },
     setIsPlaying: (state, action: PayloadAction<boolean>) => {
       state.isPlaying = action.payload;
     },
@@ -94,7 +97,8 @@ export const {
   playNext,
   playPrevious,
   setConverterAPI,
-  setArtistPlaylist
+  setArtistPlaylist,
+  togglePlayPause
 } = musicPlayerSlice.actions;
 
 export default musicPlayerSlice.reducer; 

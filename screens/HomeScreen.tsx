@@ -1,7 +1,7 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
 import MusicFileList from "../components/MusicFileList";
 import CelestialTitle from "../components/Title";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View } from "react-native";
 import { useSelector } from "react-redux";
 import { RootState } from "../store/store";
 // const handleFileSelect = async (uri: string, name: string): Promise<void> => {
@@ -81,7 +81,7 @@ export default function HomeScreen() {
         }
     });
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <View style={styles.safeArea}>
         <ScrollView style={styles.container}>
             <CelestialTitle title="Celestial" atHome={true}/>
             {/* <Text style={
@@ -98,7 +98,7 @@ export default function HomeScreen() {
             </Text> */}
             <MusicFileList />
         </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 

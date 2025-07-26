@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   },
   selectedFileItem: {
     backgroundColor: colors.backgroundColor,
-    borderRadius: 20,
+    borderRadius: 100,
   },
   fileInfo: {
     flex: 1,
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
 
           {/* <Image source={{ uri: item?.thumbnail }} /> */}
           <ArtGenerator trackId={item.id} width={50} height={50}/>
-          {/* <ArtGenerator trackId={item.id} borderRadius={0} setAsBg={true} /> */}
+          {isSelected && <ArtGenerator trackId={item.id} borderRadius={0} setAsBg={true} />}
       <View style={styles.fileInfo}>
 
           <Text style={styles.fileName} numberOfLines={1}>

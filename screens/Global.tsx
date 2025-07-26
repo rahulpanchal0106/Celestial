@@ -1,19 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from "react-native";
 import GlobalMusicFileList, { MusicFile } from "../components/GlobalList";
 import CelestialTitle from "../components/Title";
-import { SafeAreaView } from "react-native-safe-area-context";
-import ArtistsPage from "../components/Artists";
+import { SafeAreaView } from 'react-native';
+import ArtistsPage from '../components/Artists';
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../store/store";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { setPlaylist } from "../store/musicPlayerSlice";
 
 export default function Global() {
   const dispatch = useDispatch();
   const currentTrack = useSelector((state: RootState) => state.musicPlayer.currentTrack);
   const convAPI = useSelector((state: RootState) => state.musicPlayer.converterAPI);
-  const [musicFiles, setMusicFiles] = useState<MusicFile[]>([]);
+  useEffect(() => {
+    fetchTracks();
+  }, []);
   const [favoriteFiles, setFavoriteFiles] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState<{ [key: string]: boolean }>({});
@@ -50,7 +52,7 @@ export default function Global() {
           })
           .filter((track: MusicFile) => track.uri);
 
-        setMusicFiles([...newTracks]);
+        // setMusicFiles([...newTracks]);
         dispatch(setPlaylist([...newTracks]));
       } else {
         console.error('Invalid data format received:', data);
@@ -137,15 +139,19 @@ export default function Global() {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={styles.titleContainer}>
           <CelestialTitle title="Library" />
         </View>
         <View style={styles.tracksContainer}>
-          <GlobalMusicFileList />
+          {isLoading ? (
+            <ActivityIndicator size="large" color={colors.titleColor} />
+          ) : (
+            <GlobalMusicFileList />
+          )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, Switch, StyleSheet } from "react-native";
 import { useDispatch } from "react-redux";
 import { setTheme } from "../../store/musicPlayerSlice";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const ThemeToggle = () => {
   const colors = {
@@ -21,13 +21,39 @@ export const ThemeToggle = () => {
       disabledButton: '#666666',
     },
   };
+
   const [isDark, setIsDark] = useState(true);
-const dispatch =useDispatch()
-  const toggleTheme = () => {
-    setIsDark((prev) => !prev);
-    dispatch(setTheme(isDark?"light":"dark"))
+  const dispatch = useDispatch();
+
+  // Load theme preference from AsyncStorage on mount
+  useEffect(() => {
+    const loadTheme = async () => {
+      try {
+        const storedTheme = await AsyncStorage.getItem("theme");
+        if (storedTheme === "light" || storedTheme === "dark") {
+          setIsDark(storedTheme === "dark");
+          dispatch(setTheme(storedTheme));
+        }
+      } catch (e) {
+        // fallback to default
+      }
+    };
+    loadTheme();
+  }, [dispatch]);
+
+  const toggleTheme = async () => {
+    const newIsDark = !isDark;
+    setIsDark(newIsDark);
+    const newTheme = newIsDark ? "dark" : "light";
+    dispatch(setTheme(newTheme));
+    try {
+      await AsyncStorage.setItem("theme", newTheme);
+    } catch (e) {
+      // handle error if needed
+    }
   };
-  const themeColors = colors[isDark?"dark":"light" as keyof typeof colors] || colors.light;
+
+  const themeColors = colors[isDark ? "dark" : "light" as keyof typeof colors] || colors.light;
   const styles = StyleSheet.create({
     container: {
       flexDirection: "row",
@@ -36,16 +62,14 @@ const dispatch =useDispatch()
       paddingHorizontal: 20,
       justifyContent: "space-between",
       width: "100%",
-      backgroundColor:themeColors.background ,
-      
+      backgroundColor: themeColors.background,
       borderRadius: 12,
       marginVertical: 8,
       elevation: 1,
     },
     label: {
       fontSize: 16,
-      color:themeColors.text,
-      // color: "#333",
+      color: themeColors.text,
       fontWeight: "500",
     },
   });

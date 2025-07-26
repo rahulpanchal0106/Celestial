@@ -8,7 +8,7 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store/store';
-import { setCurrentTrack, setIsPlaying, setCurrentTime, setDuration } from '../store/musicPlayerSlice';
+import { setCurrentTrack, setIsPlaying, setCurrentTime, setDuration, togglePlayPause } from '../store/musicPlayerSlice';
 import { Ionicons } from '@expo/vector-icons';
 
 // Import Reanimated and Gesture Handler
@@ -161,10 +161,12 @@ export default function MusicPlayer() {
     setupAudio();
   }, []);
 
-  // Animate play/pause button on state change
   useEffect(() => {
-    playButtonScale.value = withSpring(isPlaying ? 0.8 : 1, { damping: 10 });
-    pauseButtonScale.value = withSpring(isPlaying ? 1 : 0.8, { damping: 10 });
+    if (isPlaying) {
+      playSound();
+    } else {
+      pauseSound();
+    }
   }, [isPlaying]);
 
   // Animate track title on track change
@@ -434,7 +436,7 @@ export default function MusicPlayer() {
             { backgroundColor: colors.buttonColor },
             (!currentTrack || isLoading) && [styles.disabledButton, { backgroundColor: colors.disabledButtonColor }]
           ]}
-          onPress={isPlaying ? pauseSound : playSound}
+          onPress={() => dispatch(togglePlayPause())}
           disabled={!currentTrack || isLoading}
         >
           <Animated.View style={isPlaying ? pauseButtonStyle : playButtonStyle}>

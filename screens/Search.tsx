@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity } from "react-native";
 import YouTubeSearch from "../components/YoutubeSearch";
 import CelestialTitle from "../components/Title";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View } from "react-native";
 import { useSelector } from "react-redux";
 import { RootState } from "../store/store";
 
@@ -76,7 +76,7 @@ export default function Search() {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={styles.titleContainer}>
           <CelestialTitle title="Search" />
@@ -90,7 +90,7 @@ export default function Search() {
           <YouTubeSearch onTrackAdd={() => {}} />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

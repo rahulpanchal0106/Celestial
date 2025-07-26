@@ -35,7 +35,8 @@
     "android.permission.FOREGROUND_SERVICE",
     "android.permission.WAKE_LOCK",
     "android.permission.ACCESS_MEDIA_LOCATION"
-  ]
+  ],
+      "fullscreen": true
     },
     "plugins": [
       [
@@ -72,7 +73,8 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos.",
-        "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos."
+        "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos.",
+        "UIRequiresFullScreen": true
       }
     },
     "runtimeVersion": {

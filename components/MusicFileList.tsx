@@ -33,6 +33,50 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
     }
     return false
   }
+  const handleRemoveTrack = async (track: AudioFile) => {
+    try {
+      setIsLoading(true);
+      // Find the asset by URI
+      const assetId = track.filepath?.split('/').pop()?.split('.')[0];
+      // Find the album
+      const albums = await MediaLibrary.getAlbumsAsync();
+      const brokeBeatsAlbum = albums.find((album) => album.title === 'Celestial');
+      if (!brokeBeatsAlbum) {
+        setError('Album not found.');
+        setIsLoading(false);
+        return;
+      }
+      // Find the asset in the album
+      const assetsInAlbum = await MediaLibrary.getAssetsAsync({
+        album: brokeBeatsAlbum,
+        mediaType: ['audio'],
+      });
+      const asset = assetsInAlbum.assets.find(a => a.uri === track.filepath);
+      if (!asset) {
+        setError('Track not found in album.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Remove asset from album (not delete from device, just remove from album)
+      await MediaLibrary.removeAssetsFromAlbumAsync([asset.id], brokeBeatsAlbum);
+
+      // Optionally, remove metadata from AsyncStorage
+      const metadataKeys = await AsyncStorage.getAllKeys();
+      const trackKey = metadataKeys.find((key) => key.startsWith('track_') && key.includes(asset.filename));
+      if (trackKey) {
+        await AsyncStorage.removeItem(trackKey);
+      }
+
+      // Refresh list
+      await loadMusicFiles();
+    } catch (err: any) {
+      console.error('Error removing track:', err);
+      setError('Failed to remove track from album.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   const getThemeColors = () => {
     console.log("♾️♾️♾️ Theme: ", theme);
     if (!theme || theme === 'dark') {
@@ -185,7 +229,7 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
     setIsLoading(true);
     setError(null);
     setSearchQuery(''); // Clear search query on refresh
-
+  
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
@@ -198,39 +242,55 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
         setIsLoading(false);
         return;
       }
-
+  
       const albums = await MediaLibrary.getAlbumsAsync();
       const brokeBeatsAlbum = albums.find((album) => album.title === 'Celestial');
       console.log("!!!! ALBUM: ", brokeBeatsAlbum);
-      if (!brokeBeatsAlbum && !isLoading) {
+      if (!brokeBeatsAlbum) {
         setError('No music files found in local album.');
         setIsLoading(false);
         return;
       }
-
-      const assets = await MediaLibrary.getAssetsAsync({
-        album: brokeBeatsAlbum,
-        mediaType: ['audio'],
-      });
-      console.log("!!!! ASSETS: ", assets);
-      const filteredAssets = assets.assets.filter((asset) =>
-        /Imagine/i.test(asset.filename)
-      );
-
+  
+      let allAssets: MediaLibrary.Asset[] = [];
+      let endCursor: string | undefined = undefined;
+      let hasNextPage = true;
+  
+      // Fetch all pages of assets
+      while (hasNextPage) {
+        const assetsResponse = await MediaLibrary.getAssetsAsync({
+          album: brokeBeatsAlbum,
+          mediaType: ['audio'],
+          first: 20, // Number of assets per page (default is often 20)
+          after: endCursor, // Use the cursor from the previous page
+        });
+  
+        allAssets = [...allAssets, ...assetsResponse.assets];
+        endCursor = assetsResponse.endCursor;
+        hasNextPage = assetsResponse.hasNextPage;
+  
+        console.log("!!!! ASSETS: ", assetsResponse);
+      }
+  
+      // Remove the Imagine filter if you want all tracks
+      // const filteredAssets = allAssets.filter((asset) =>
+      //   /Imagine/i.test(asset.filename)
+      // );
+  
       // Retrieve metadata from AsyncStorage
       const files: AudioFile[] = [];
-      for (const asset of assets.assets) {
+      for (const asset of allAssets) {
         const metadataKeys = await AsyncStorage.getAllKeys();
         const trackKey = metadataKeys.find((key) => key.startsWith('track_') && key.includes(asset.filename));
-
+  
         let track: AudioFile = {
           filepath: asset.uri,
           name: asset.filename || `Track_${asset.id}`,
           source: 'mongo',
           thumbnail: undefined,
-          duration: asset.duration
+          duration: asset.duration,
         };
-
+  
         if (trackKey) {
           const metadataStr = await AsyncStorage.getItem(trackKey);
           if (metadataStr) {
@@ -240,14 +300,14 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
               name: metadata.title || asset.filename,
               source: metadata.source,
               thumbnail: metadata.thumbnail,
-              duration: asset.duration
+              duration: asset.duration,
             };
           }
         }
-
+  
         files.push(track);
       }
-
+  
       setMusicFiles(files);
     } catch (err: any) {
       console.error('Error loading music files:', err);

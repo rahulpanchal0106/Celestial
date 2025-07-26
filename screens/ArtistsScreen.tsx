@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity } from "react-native";
 import YouTubeSearch from "../components/YoutubeSearch";
 import CelestialTitle from "../components/Title";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View } from "react-native";
 import ArtistsPage from "../components/Artists";
 import { RootState } from "../store/store";
 import { useSelector } from "react-redux";
@@ -51,7 +51,7 @@ export default function ArtistScreen() {
   const colors = getThemeColors();
 
   return (
-    <SafeAreaView style={[styles.safeArea]}>
+    <View style={[styles.safeArea]}>
       <ScrollView style={[styles.container, { backgroundColor: colors.backgroundColor }]} contentContainerStyle={styles.contentContainer}>
         <View style={styles.titleContainer}>
           <CelestialTitle title="Artists" />
@@ -65,7 +65,7 @@ export default function ArtistScreen() {
           <ArtistsPage />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

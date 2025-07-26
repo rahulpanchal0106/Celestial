@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Alert, StatusBar } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Alert } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +11,7 @@ import HomeScreen from './screens/HomeScreen';
 import Search from './screens/Search';
 import { setConverterAPI } from './store/musicPlayerSlice';
 import Global from './screens/Global';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// import { View } from 'react-native';
 import ArtistScreen from './screens/ArtistsScreen';
 import SettingsList from './components/SettingsList';
 import ArtGenerator from './components/ArtGenerator';
@@ -136,8 +137,8 @@ function AppContent() {
   const colors = getThemeColors();
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.backgroundColor }]} edges={['bottom']}>
-      <StatusBar />
+    <View style={[styles.safeArea, { backgroundColor: colors.backgroundColor }]}>
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} backgroundColor="transparent" />
       <View style={styles.container}>
         <NavigationContainer>
           <Tab.Navigator
@@ -162,7 +163,7 @@ function AppContent() {
           <MusicPlayer />
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
