@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from "react-native";
 import GlobalMusicFileList, { MusicFile } from "../components/GlobalList";
-import CelestialTitle from "../components/Title";
+import StickyHeader from "../components/StickyHeader";
 import { SafeAreaView } from 'react-native';
 import ArtistsPage from '../components/Artists';
 import { useDispatch, useSelector } from "react-redux";
@@ -74,38 +74,17 @@ export default function Global() {
   const theme = useSelector((state: RootState) => state.musicPlayer.theme);
 
   const getThemeColors = () => {
-    console.log("♾️♾️♾️ Theme: ", theme);
     if (!theme || theme === 'dark') {
       return {
-        textColor: "#1a1a2e",
-        particleColor: "#000000",
-        gradientPrimary: "#4e3794",
-        underlineColor: "#1a1a2e",
         backgroundColor: "#f5f5f5",
         titleColor: "#333333",
-        timeTextColor: "#666666",
-        sliderThumbColor: "#6200ee",
-        sliderTrackColor: "#d3d3d3",
-        sliderProgressColor: "#6200ee",
-        buttonColor: "#6200ee",
-        buttonTextColor: "white",
-        disabledButtonColor: "#cccccc",
+        textColor: "#1a1a2e",
       };
     } else {
       return {
-        textColor: "#ffffff",
-        particleColor: "#ffffff",
-        gradientPrimary: "#ffffff",
-        underlineColor: "#e0e0e0",
         backgroundColor: "#121212",
         titleColor: "#e0e0e0",
-        timeTextColor: "#b3b3b3",
-        sliderThumbColor: "#6200ee",
-        sliderTrackColor: "#4f4f4f",
-        sliderProgressColor: "#6200ee",
-        buttonColor: "#6200ee",
-        buttonTextColor: "white",
-        disabledButtonColor: "#333333",
+        textColor: "#ffffff",
       };
     }
   };
@@ -116,9 +95,6 @@ export default function Global() {
     contentContainer: {
       paddingBottom: "20%",
       paddingHorizontal: 0,
-    },
-    titleContainer: {
-      paddingVertical: 10,
     },
     tracksContainer: {
       width: "100%",
@@ -133,6 +109,7 @@ export default function Global() {
       flex: 1,
       backgroundColor: colors.backgroundColor,
       paddingBottom: 10,
+      paddingTop: 100, // Add padding to avoid content being hidden by the sticky header
     },
     sectionTitle: {
       fontSize: 26,
@@ -160,10 +137,8 @@ export default function Global() {
 
   return (
     <View style={styles.safeArea}>
+      <StickyHeader title="Library" />
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        <View style={styles.titleContainer}>
-          <CelestialTitle title="Library" />
-        </View>
         <View style={styles.tracksContainer}>
           {isLoading ? (
             <ActivityIndicator size="large" color={colors.titleColor} />

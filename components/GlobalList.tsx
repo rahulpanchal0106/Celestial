@@ -386,6 +386,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     margin: 10,
     padding: 8,
+    paddingHorizontal: 20,
     backgroundColor: colors.searchBackground,
     borderRadius: 100,
     borderWidth: 1,

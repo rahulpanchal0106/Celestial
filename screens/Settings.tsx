@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { ThemeToggle } from '../components/Settings/Theme';
 import { RootState } from '../store/store';
+import StickyHeader from '../components/StickyHeader';
 
 export default function SettingsScreen() {
   const dispatch = useDispatch();
@@ -34,10 +35,10 @@ export default function SettingsScreen() {
     container: {
       flex: 1,
       padding: 20,
-      paddingTop: 0,
+      paddingTop: 100, // Add padding to avoid content being hidden by the sticky header
       alignItems: 'center',
       justifyContent: 'center',
-      // backgroundColor: themeColors.background,
+      backgroundColor: themeColors.background,
     },
     sliderContainer: {
       backgroundColor: themeColors.background,
@@ -95,10 +96,13 @@ export default function SettingsScreen() {
   ];
 
   return (
-    <View style={styles.container}>
-      {settings.map((setting) => (
-        <View key={setting.id}>{setting.render()}</View>
-      ))}
+    <View style={{flex: 1}}>
+      <StickyHeader title="Settings" />
+      <View style={styles.container}>
+        {settings.map((setting) => (
+          <View key={setting.id}>{setting.render()}</View>
+        ))}
+      </View>
     </View>
   );
 }

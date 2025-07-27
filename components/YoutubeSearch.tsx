@@ -459,10 +459,13 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
       flexDirection: 'row',
       alignItems: 'center',
       borderColor: colors.underlineColor,
-      borderWidth: 0,
-      borderRadius: 20,
+      
       backgroundColor: colors.backgroundColor,
       marginRight: 8,
+      borderWidth:1,
+      borderRadius: 25,
+      // borderColor:"gray",
+      borderStyle:"solid"
     },
     searchIcon: {
       marginLeft: 12,
@@ -553,15 +556,15 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
     },
     emptyText: {
       fontSize: 14,
-      color: colors.timeTextColor,
-      textAlign: 'center',
-      marginTop: 12,
-      marginBottom: 12,
-      height: "100%",
-      display: "flex",
-      justifyContent: "center",
-      alignContent: "center",
-    },
+              //  style={[{ 
+              height:40,
+              borderColor: colors.underlineColor,
+              backgroundColor: colors.backgroundColor,
+              // color: "white",
+              color: colors.textColor
+            // }]}]}    
+    }
+
   });
 
   return (
@@ -576,8 +579,9 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onTrackAdd }) => {
               height:40,
               borderColor: colors.underlineColor,
               backgroundColor: colors.backgroundColor,
-              color: colors.textColor,
-            }]}    
+              // color: "white",
+              color: "gray"
+        }]}    
             onChangeText={setQuery}
             onSubmitEditing={searchYouTube}
             editable={!isSearching}

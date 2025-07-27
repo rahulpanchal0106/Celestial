@@ -139,14 +139,12 @@ export const initiateFastDownload = async (
         console.log("Asset added to album");
       }
 
-      const assetInfo = await MediaLibrary.getAssetInfoAsync(asset);
-      console.log("Asset info: ", assetInfo);
-      if (!assetInfo.localUri) {
-        throw new Error('Failed to get asset local URI');
+      if (!asset.uri) {
+        throw new Error('Failed to get asset URI');
       }
 
-      finalPath = assetInfo.localUri;
-      filename = assetInfo.filename || filename;
+      finalPath = asset.uri;
+      filename = asset.filename || filename;
 
       // Save metadata to AsyncStorage with asset filename for MusicFileList
       const metadata = {
@@ -156,9 +154,9 @@ export const initiateFastDownload = async (
         filepath: finalPath,
         thumbnail: thumbnailPath,
         source: 'mongo',
-        assetFilename: assetInfo.filename, // Store filename for lookup
+        assetFilename: asset.filename, // Store filename for lookup
       };
-      const storageKey = `track_${video._id}_${assetInfo.filename || video._id}`;
+      const storageKey = `track_${video._id}_${asset.filename || video._id}`;
       console.log("Saving metadata to AsyncStorage with key: ", storageKey);
       await AsyncStorage.setItem(storageKey, JSON.stringify(metadata));
 

@@ -39,9 +39,9 @@ export default function SettingsList() {
         style={[styles.container, { backgroundColor: themeColors.containerBackground }]} 
         contentContainerStyle={styles.contentContainer}
       >
-        <View style={styles.titleContainer}>
+        {/* <View style={styles.titleContainer}>
           <CelestialTitle title="Settings" />
-        </View>
+        </View> */}
         <View style={styles.artistsContainer}>
           {/* <Ionicons
             name={searchExpanded ? "chevron-up" : "chevron-down"}
