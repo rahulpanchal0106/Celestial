@@ -92,7 +92,7 @@ function generateShapes(seed: string, width: number, height: number, mood: Mood,
   }
 
   // Main shapes - reduce count for background
-  const shapeCount = setAsBg ? Math.floor(numShapes * 0.5) : numShapes;
+  const shapeCount = setAsBg ? 2 : numShapes; // Drastically reduce shapes for background
   for (let i = 0; i < shapeCount; i++) {
     const type = settings.shapeTypes[Math.floor(rand() * settings.shapeTypes.length)];
     const x = settings.cluster ? clusterX + noise(seed, i, 0) * width * 0.3 : rand() * width;
@@ -101,8 +101,8 @@ function generateShapes(seed: string, width: number, height: number, mood: Mood,
     const rotation = rand() * 360;
     const colorIndex = Math.floor(rand() * palette.length);
     const color = palette[colorIndex];
-    const useGradient = rand() < 0.5; // Reduce gradient usage
-    const opacity = (setAsBg ? 0.7 : 1) * (settings.opacity[0] + rand() * (settings.opacity[1] - settings.opacity[0]));
+    const useGradient = setAsBg ? false : rand() < 0.5; // Disable gradients for background
+    const opacity = (setAsBg ? 0.1 : 1) * (settings.opacity[0] + rand() * (settings.opacity[1] - settings.opacity[0])); // Lower opacity for background
 
     const shapeProps = {
       key: `shape-${i}`,
@@ -186,7 +186,7 @@ function generateShapes(seed: string, width: number, height: number, mood: Mood,
           </Filter>
         </Defs>
       );
-      shapes[i] = { ...shapes[i], props: { ...shapes[i].props, filter: `url(#shadow${i})` } };
+      shapes[i] = { ...shapes[i], props: { ...shapes[i].props, filter: `url(#shadow${i})` } } ; // Apply filter to the shape
     }
   }
 
@@ -250,7 +250,9 @@ const styles = StyleSheet.create({
 export default memo(TrackCoverArt, (prevProps, nextProps) => {
   return prevProps.trackId === nextProps.trackId &&
          prevProps.width === nextProps.width &&
-         prevProps.height === nextProps.height;
+         prevProps.height === nextProps.height &&
+         prevProps.borderRadius === nextProps.borderRadius &&
+         prevProps.setAsBg === nextProps.setAsBg; // Include setAsBg and borderRadius in memoization
 });
 
 

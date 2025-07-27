@@ -8,11 +8,14 @@ import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../store/store";
 import { useEffect, useState } from "react";
 import { setPlaylist } from "../store/musicPlayerSlice";
+import { QueuedTrack } from "../store/downloadQueueSlice";
 
 export default function Global() {
   const dispatch = useDispatch();
   const currentTrack = useSelector((state: RootState) => state.musicPlayer.currentTrack);
   const convAPI = useSelector((state: RootState) => state.musicPlayer.converterAPI);
+  const downloadQueue = useSelector((state: RootState) => state.downloadQueue.queue); // Get download queue
+
   useEffect(() => {
     fetchTracks();
   }, []);
@@ -48,6 +51,7 @@ export default function Global() {
               isFavorite: favoriteFiles.has(track._id),
               author: track.author,
               filepath: track.filepath,
+              youtubeVideoId: uri.includes('youtube.com/watch?v=') ? uri.split('v=')[1].split('&')[0] : undefined,
             };
           })
           .filter((track: MusicFile) => track.uri);
@@ -136,6 +140,22 @@ export default function Global() {
       color: colors.titleColor,
       padding: 12,
     },
+    downloadQueueContainer: {
+      marginTop: 20,
+      paddingHorizontal: 12,
+    },
+    queueItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: '#eee',
+    },
+    queueItemText: {
+      fontSize: 16,
+      color: colors.textColor,
+    },
   });
 
   return (
@@ -151,6 +171,19 @@ export default function Global() {
             <GlobalMusicFileList />
           )}
         </View>
+
+        {downloadQueue.length > 0 && (
+          <View style={styles.downloadQueueContainer}>
+            <Text style={styles.sectionTitle}>Download Queue</Text>
+            {downloadQueue.map((track) => (
+              <View key={track.id} style={styles.queueItem}>
+                <Text style={styles.queueItemText}>{track.title} - {track.status}</Text>
+                {track.status === 'downloading' && <ActivityIndicator size="small" color={colors.textColor} />}
+                {track.status === 'failed' && <Ionicons name="alert-circle" size={20} color="red" />}
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );

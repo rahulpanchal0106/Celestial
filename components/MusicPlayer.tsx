@@ -154,8 +154,21 @@ export default function MusicPlayer() {
           interruptionModeIOS,
           playsInSilentModeIOS: true,
         });
+
+        // Register background task
+        const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_PLAYBACK_TASK);
+        if (!isRegistered) {
+          await TaskManager.registerTaskAsync(BACKGROUND_PLAYBACK_TASK);
+        }
+
+        // Request notification permissions
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission required', 'Please enable notifications for background playback.');
+        }
+
       } catch (error) {
-        console.log('Error setting audio mode:', error);
+        console.log('Error setting audio mode or registering task:', error);
       }
     };
     setupAudio();
@@ -297,6 +310,16 @@ export default function MusicPlayer() {
       if (soundRef.current) {
         await soundRef.current.playAsync();
         dispatch(setIsPlaying(true));
+        // Start foreground service and show notification
+        if (Platform.OS === 'android') {
+          await Notifications.presentNotificationAsync({
+            title: currentTrack?.title || 'Unknown Title',
+            body: currentTrack?.artist || 'Unknown Artist',
+            sound: false,
+            sticky: true, // Makes the notification persistent
+            data: {},
+          });
+        }
       }
     } catch (error) {
       console.log('Error playing sound:', error);
@@ -310,6 +333,10 @@ export default function MusicPlayer() {
       if (soundRef.current) {
         await soundRef.current.pauseAsync();
         dispatch(setIsPlaying(false));
+        // Dismiss notification when paused
+        if (Platform.OS === 'android') {
+          await Notifications.dismissAllNotificationsAsync();
+        }
       }
     } catch (error) {
       console.log('Error pausing sound:', error);
@@ -327,6 +354,10 @@ export default function MusicPlayer() {
         dispatch(setCurrentTime(0));
         setSliderValue(0);
         sliderProgress.value = 0;
+        // Dismiss notification when stopped
+        if (Platform.OS === 'android') {
+          await Notifications.dismissAllNotificationsAsync();
+        }
       }
     } catch (error) {
       console.log('Error stopping sound:', error);

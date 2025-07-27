@@ -8,6 +8,8 @@ export interface Track {
   duration?: number;
   isFavorite?:boolean;
   filepath?:string;
+  youtubeVideoId?: string;
+  isQueued?: boolean;
 }
 
 interface MusicPlayerState {

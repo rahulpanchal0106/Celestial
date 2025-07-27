@@ -15,6 +15,7 @@ import Global from './screens/Global';
 import ArtistScreen from './screens/ArtistsScreen';
 import SettingsList from './components/SettingsList';
 import ArtGenerator from './components/ArtGenerator';
+import { useDownloadQueueManager } from './hooks/useDownloadQueueManager';
 
 const Tab = createBottomTabNavigator();
 
@@ -135,6 +136,7 @@ function AppContent() {
   };
   const currentTrack = useSelector((state:RootState)=>state.musicPlayer.currentTrack);
   const colors = getThemeColors();
+  useDownloadQueueManager();
 
   return (
     <View style={[styles.safeArea, { backgroundColor: colors.backgroundColor }]}>

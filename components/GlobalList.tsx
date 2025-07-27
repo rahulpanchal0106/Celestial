@@ -18,6 +18,8 @@ import { RootState } from '../store/store';
 import { setCurrentTrack, setPlaylist, setConverterAPI } from '../store/musicPlayerSlice';
 import { Ionicons } from '@expo/vector-icons';
 import ScrollingText from './ScrollingText';
+import TrackOptionsMenu from './TrackOptionsMenu';
+
 // import { AudioVisualizer } from 'react-audio-visualize';
 // import * as MediaLibrary from 'expo-media-library';
 
@@ -62,6 +64,8 @@ export default function GlobalList() {
   const [currentTrackURI,setCurrentTrackURI] = useState<string|null>(null)
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState<{ [key: string]: boolean }>({}); // Add state for download status
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<MusicFile | null>(null);
   const visualizerRef = useRef<HTMLCanvasElement>(null)
   const [searchQuery, setSearchQuery] = useState('');
 //   const requestStoragePermission = async () => {
@@ -115,6 +119,7 @@ export default function GlobalList() {
   };
 
   const colors = getThemeColors();
+  
   
 // const path = ''; // path to the audio file for which you want to show waveform
 // const ref = useRef<IWaveformRef>(null);
@@ -509,21 +514,30 @@ const styles = StyleSheet.create({
 
   // Toggle favorite - now triggers initiateFastDownload
   const toggleFavorite = async (file: MusicFile) => {
-    // Map MusicFile to the format expected by initiateFastDownload
     console.log("--------- ",file)
-    const downloadFile = {
-      _id: file.id,
-      id: file.id,
-      title: file.title,
-      artist: file.artist,
-      author: file.author,
-      filepath: file.filepath || '',
-      thumbnail: undefined, // Add thumbnail if available in your API data
-    };
-
-    console.log("🎵🎵🎵 starting download")
-    await initiateFastDownload(downloadFile,setIsDownloading,onTrackAdd,AUDIO_BASE_URL);
-    console.log("🎵🎵🎵 FINisHED download")
+    try {
+      setIsDownloading((prev) => ({ ...prev, [file.id]: true }));
+      console.log("🎵🎵🎵 starting download")
+      const downloadedTrack = await initiateFastDownload(file, AUDIO_BASE_URL);
+      console.log("🎵🎵🎵 FINisHED download")
+      // Add the downloaded track to the musicFiles state
+      const newTrack: MusicFile = {
+        id: downloadedTrack.filepath || '',
+        title: downloadedTrack.name,
+        artist: 'Downloaded Track',
+        uri: downloadedTrack.filepath || '',
+        duration: downloadedTrack.duration,
+        isFavorite: true,
+        filepath: downloadedTrack.filepath,
+      };
+      setMusicFiles((prevFiles) => [newTrack, ...prevFiles]);
+      setAllMusicFiles((prevFiles) => [newTrack, ...prevFiles]);
+      dispatch(setPlaylist([newTrack, ...musicFiles]));
+    } catch (error) {
+      console.error('Download failed:', error);
+    } finally {
+      setIsDownloading((prev) => ({ ...prev, [file.id]: false }));
+    }
   };
 
 
@@ -675,6 +689,16 @@ const styles = StyleSheet.create({
             )}
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => {
+              setSelectedTrack(item);
+              setIsMenuVisible(true);
+            }}
+          >
+            <Ionicons name="ellipsis-vertical" size={20} color={colors.textColor} />
+          </TouchableOpacity>
+
           {/* <TouchableOpacity
             style={styles.actionButton}
             onPress={() => deleteFile(item.id, item.uri)}
@@ -746,6 +770,14 @@ const styles = StyleSheet.create({
       //   musicFiles.map((item,i)=>renderFileItem({item,i}))
       //   }
       // </View>
+      )}
+
+      {selectedTrack && (
+        <TrackOptionsMenu
+          isVisible={isMenuVisible}
+          onClose={() => setIsMenuVisible(false)}
+          track={selectedTrack}
+        />
       )}
     </View>
   );

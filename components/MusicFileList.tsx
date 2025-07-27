@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, FlatList, TouchableOpacity, Image, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import TrackOptionsMenu from './TrackOptionsMenu';
 import * as MediaLibrary from 'expo-media-library';
 import { useDispatch, useSelector } from 'react-redux';
 import { setCurrentTrack } from '../store/musicPlayerSlice';
@@ -21,6 +22,8 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>(''); // New state for search input
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<AudioFile | null>(null);
   const theme = useSelector((state: RootState) => state.musicPlayer.theme);
   const currentTrack = useSelector((state: RootState) => state.musicPlayer.currentTrack);
   const isPlaying = useSelector((state: RootState) => state.musicPlayer.isPlaying);
@@ -364,6 +367,15 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
       {
         <Ionicons name={isIt?"pause":"play"} size={20} color="#6200ee" style={{marginLeft:12}} />
       }
+      <TouchableOpacity
+        style={{ padding: 8, marginLeft: 8 }}
+        onPress={() => {
+          setSelectedTrack(item);
+          setIsMenuVisible(true);
+        }}
+      >
+        <Ionicons name="ellipsis-vertical" size={20} color={colors.textColor} />
+      </TouchableOpacity>
     </TouchableOpacity>)
   };
 
@@ -399,7 +411,20 @@ const MusicFileList: React.FC<MusicFileListProps> = ({ onTrackSelect }) => {
           filteredMusicFiles.reverse().map((item, i) => renderMusicFile({ item, i }))
         )}
       </View>
-      
+      {selectedTrack && (
+        <TrackOptionsMenu
+          isVisible={isMenuVisible}
+          onClose={() => setIsMenuVisible(false)}
+          track={{
+            id: selectedTrack.filepath || '',
+            title: selectedTrack.name,
+            artist: 'Downloaded Track',
+            uri: selectedTrack.filepath || '',
+            duration: selectedTrack.duration,
+            youtubeVideoId: selectedTrack.filepath?.includes('youtube.com/watch?v=') ? selectedTrack.filepath.split('v=')[1].split('&')[0] : undefined,
+          }}
+        />
+      )}
     </View>
   );
 };

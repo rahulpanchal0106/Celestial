@@ -2,24 +2,7 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert } from 'react-native';
-
-interface MusicFile {
-  _id: string;
-  id: string;
-  title: string;
-  artist?: string;
-  author?: string;
-  filepath: string;
-  thumbnail?: string;
-}
-
-interface AudioFile {
-  uri?: string;
-  filepath?: string;
-  name: string;
-  source: 'local' | 'mongo' | 'youtube';
-  thumbnail?: string;
-}
+import { Track } from '../store/musicPlayerSlice';
 
 // Function to request storage permissions
 const requestStoragePermission = async () => {
@@ -52,12 +35,9 @@ const requestStoragePermission = async () => {
 };
 
 export const initiateFastDownload = async (
-  video: MusicFile,
-  setIsDownloading: React.Dispatch<React.SetStateAction<{ [key: string]: boolean }>>,
-  onTrackAdd: (track: AudioFile) => void,
+  video: Track,
   AUDIO_BASE_URL: string
 ) => {
-  setIsDownloading((prev) => ({ ...prev, [video._id]: true }));
   console.log("(****************************");
   console.log("____________________STARTING: ", video);
 
@@ -191,6 +171,7 @@ export const initiateFastDownload = async (
         name: video.title,
         source: 'mongo',
         thumbnail: thumbnailPath,
+        duration: video.duration,
       };
     } else {
       // Save to document directory for semi-persistence
@@ -222,17 +203,18 @@ export const initiateFastDownload = async (
         name: video.title,
         source: 'mongo',
         thumbnail: thumbnailPath,
+        duration: video.duration,
       };
     }
 
     console.log("Track prepared: ", track);
-    onTrackAdd(track);
     Alert.alert(
       'Success',
       permissionGranted
         ? `Track "${video.title}" added to local album.`
         : `Track "${video.title}" added to the queue. Will be available in Celestial Library.`
     );
+    return track;
   } catch (err: any) {
     console.error('Download Error:', err);
     Alert.alert(
@@ -241,8 +223,8 @@ export const initiateFastDownload = async (
         ? 'This track is already being processed. Please wait.'
         : `Failed to add track: ${err.message}`
     );
+    throw err; // Re-throw the error so the calling component can catch it
   } finally {
-    setIsDownloading((prev) => ({ ...prev, [video._id]: false }));
     console.log("🎵🎵🎵 FINisHED download");
   }
 };
